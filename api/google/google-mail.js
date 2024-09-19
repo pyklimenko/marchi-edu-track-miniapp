@@ -27,9 +27,11 @@ async function sendGmail(to, subject, message) {
         const auth = await googleAuthorize();
         console.log('Авторизация завершена.');
 
-        const gmail = google.gmail({ version: 'v1', auth });
+        console.log('Инициализация Gmail API...');
+        const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
         console.log('Gmail API инициализирован.');
 
+        console.log('Готовим сообщение...');
         const subjectBase64 = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
         const email = [
             `To: ${to}`,
@@ -50,7 +52,6 @@ async function sendGmail(to, subject, message) {
 
 
         console.log('Запрос на отправку письма инициирован...');
-
         const result = await gmail.users.messages.send({
             userId: 'me',
             requestBody: {
