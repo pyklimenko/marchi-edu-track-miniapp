@@ -1,5 +1,5 @@
-const { findPersonByEmail } = require('..api/db/db-queries');
-const sendGmailWithRetry = require('..api/google/google-mail');
+const { findPersonByEmail } = require('../api/db/db-queries');
+const sendGmailWithRetry = require('../api/google/google-mail');
 
 module.exports = async (req, res) => {
     const { email } = req.body;
