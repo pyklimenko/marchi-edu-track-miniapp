@@ -1,5 +1,5 @@
 const { ObjectId } = require('mongodb');
-const connectToDatabase = require('./db-connect');
+const connectToDatabase = require('../db/db-connect');
 
 class Person {
     constructor({ _id, lastName, firstName, middleName, phoneNumber, email, tgId, tgUserName }) {

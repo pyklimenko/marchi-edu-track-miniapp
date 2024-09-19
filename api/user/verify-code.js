@@ -1,4 +1,4 @@
-const { findPersonById, updatePersonTgId, Student, Teacher } = require('../api/db/db-queries');
+const { findPersonById, updatePersonTgId, Student, Teacher } = require('../db/db-queries');
 
 module.exports = async (req, res) => {
     const { _id, code, tgUserId } = req.body;
