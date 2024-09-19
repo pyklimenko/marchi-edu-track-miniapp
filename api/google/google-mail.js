@@ -28,7 +28,7 @@ async function sendGmail(to, subject, message) {
         console.log('Авторизация завершена.');
 
         console.log('Инициализация Gmail API...');
-        const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
+        const gmail = google.gmail({ version: 'v1', auth: auth });
         console.log('Gmail API инициализирован.');
 
         console.log('Готовим сообщение...');
@@ -50,7 +50,6 @@ async function sendGmail(to, subject, message) {
             .replace(/\//g, '_')
             .replace(/=+$/, '');
 
-
         console.log('Запрос на отправку письма инициирован...');
         const result = await gmail.users.messages.send({
             userId: 'me',
@@ -58,7 +57,7 @@ async function sendGmail(to, subject, message) {
                 raw: encodedMessage,
             },
         });
-        
+
         console.log('Ответ от Gmail API получен...');
 
         console.log(`Операция завершена за ${new Date() - startTime} мс`);  // Время выполнения

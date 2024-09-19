@@ -29,7 +29,7 @@ async function googleAuthorize() {
             return oAuth2Client;
         } else {
             console.error('Токены отсутствуют в переменных окружения');
-            throw new Error('Токены отсутствуют в переменных окружения');
+            // throw new Error('Токены отсутствуют в переменных окружения');
         }
     } catch (error) {
         console.error('Произошла ошибка при авторизации');
@@ -43,7 +43,7 @@ async function googleAuthorize() {
         } else {
             console.error('Ошибка при авторизации:', error.message);
         }
-        throw error;
+        // throw error;
     }
 }
 
