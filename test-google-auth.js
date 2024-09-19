@@ -1,3 +1,5 @@
+require('dotenv').config(); // Это должно быть первым в файле
+
 const { google } = require('googleapis');
 
 async function testGoogleAuthorization() {
