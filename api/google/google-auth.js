@@ -5,12 +5,13 @@ async function googleAuthorize() {
     const client_secret = process.env.CLIENT_SECRET;
     const redirect_uris = [process.env.REDIRECT_URIS];
 
-    console.log('Проверка переменных окружения:');
-    console.log('CLIENT_ID:', !!client_id);
-    console.log('CLIENT_SECRET:', !!client_secret);
-    console.log('REDIRECT_URIS:', !!redirect_uris[0]);
+    console.log('Тут была проверка переменных окружения.');
+
+    console.log('Пытаемся авторизоваться в Google...');
 
     const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+
+    console.log('Авторизовались!');
 
     const accessToken = process.env.GMAIL_ACCESS_TOKEN;
     const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
