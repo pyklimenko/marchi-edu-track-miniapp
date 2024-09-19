@@ -48,7 +48,6 @@ async function sendGmail(to, subject, message) {
             .replace(/\//g, '_')
             .replace(/=+$/, '');
 
-        console.log('Отправляем письмо...');
 
         console.log('Запрос на отправку письма инициирован...');
 

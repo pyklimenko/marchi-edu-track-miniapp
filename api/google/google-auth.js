@@ -11,8 +11,6 @@ async function googleAuthorize() {
 
     const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
 
-    console.log('Авторизовались!');
-
     const accessToken = process.env.GMAIL_ACCESS_TOKEN;
     const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
 
