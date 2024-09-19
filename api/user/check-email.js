@@ -17,6 +17,8 @@ module.exports = async (req, res) => {
                 tgId: person.tgId
             });
 
+            console.log(`[check-email] Сейчас будем отправлять письмо`);
+
             await sendGmailWithRetry(person.email, 'Код регистрации в MARHIEduTrack', 
                 `Привет, ${person.firstName}. Чтобы завершить регистрацию, используй код ${person._id}.`
             );
