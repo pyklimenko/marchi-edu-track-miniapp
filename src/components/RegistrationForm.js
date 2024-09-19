@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function RegistrationForm() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
   const [error, setError] = useState('');
-  const tgUser = window.Telegram.WebApp.initDataUnsafe.user;
+
+  useEffect(() => {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+
+    if (!tgUser) {
+      console.error("Telegram WebApp не инициализирован или пользователь не доступен");
+      alert('Не удалось инициализировать Telegram WebApp.');
+      return;
+    }
+
+    // Здесь можно продолжить выполнение логики, зависящей от tgUser
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,6 +41,13 @@ function RegistrationForm() {
   };
 
   const handleVerify = async () => {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (!tgUser) {
+      console.error("Telegram WebApp не инициализирован или пользователь не доступен");
+      alert('Ошибка при попытке использовать Telegram WebApp.');
+      return;
+    }
+
     const dbUserId = localStorage.getItem('dbUserId');
 
     try {
