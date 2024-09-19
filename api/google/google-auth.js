@@ -22,6 +22,7 @@ async function googleAuthorize() {
 
     try {
         if (accessToken && refreshToken) {
+            console.log('Устанавливаем токены...');
             oAuth2Client.setCredentials({
                 access_token: accessToken,
                 refresh_token: refreshToken,
@@ -33,6 +34,7 @@ async function googleAuthorize() {
             throw new Error('Токены отсутствуют в переменных окружения');
         }
     } catch (error) {
+        console.error('Произошла ошибка при авторизации');
         if (error.response) {
             console.error('Ошибка при авторизации:', error.response.data);
             console.error('Ошибка от Google API:', {
