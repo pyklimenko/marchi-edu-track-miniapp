@@ -6,9 +6,3 @@ export function getTelegramUser() {
         return null;
     }
 }
-
-export function closeTelegramWebApp() {
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.close();
-    }
-}

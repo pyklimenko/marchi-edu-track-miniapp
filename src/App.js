@@ -1,14 +1,13 @@
 import React from 'react';
 import RegistrationForm from './components/RegistrationForm';
-import StudentInfo from './components/StudentInfo';
-import TeacherInfo from './components/TeacherInfo';
+import PersonInfo from './components/PersonInfo';
 
 function App() {
   return (
     <div className="App">
       <RegistrationForm />
-      <StudentInfo />
-      <TeacherInfo />
+      <PersonInfo userType="student" />
+      <PersonInfo userType="teacher" />
     </div>
   );
 }
