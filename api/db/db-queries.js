@@ -76,10 +76,14 @@ async function findPersonByTgId(tgId) {
 async function findPersonByEmail(email) {
     const db = await connectToDatabase();
 
+    console.log(`[db-queries] Ищем среди студентов документ с email: ${email}`);
+
     const student = await db.collection('Students').findOne({ email });
     if (student) {
         return new Student({ ...student });
     }
+
+    console.log(`[db-queries] Ищем среди преподавателей документ с email: ${email}`);
 
     const teacher = await db.collection('Teachers').findOne({ email });
     if (teacher) {

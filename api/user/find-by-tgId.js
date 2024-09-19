@@ -1,4 +1,4 @@
-const { findPersonByTgId, Student, Teacher } = require('../db/db-queries');
+const { findPersonByTgId, Student, Teacher } = require('..api/db/db-queries');
 
 module.exports = async (req, res) => {
     let { tgId } = req.query;
