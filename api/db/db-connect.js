@@ -3,9 +3,13 @@ const { MongoClient } = require('mongodb');
 let client;
 let db;
 
-async function connectToDatabase(uri) {
+async function connectToDatabase() {
     if (!client) {
-        client = new MongoClient(uri);
+        const uri = process.env.MARHI_MONGODB_URI;
+        if (!uri) {
+            throw new Error('MARHI_MONGODB_URI is not defined');
+        }
+        client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
         await client.connect();
         db = client.db();  // Указывайте название базы данных, если необходимо
     }

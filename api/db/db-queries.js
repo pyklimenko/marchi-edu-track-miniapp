@@ -29,29 +29,33 @@ class Teacher extends Person {
 }
 
 async function findPersonById(id) {
-    const db = await connectToDatabase(process.env.MARHI_MONGODB_URI);
+    const db = await connectToDatabase();
     
+    // Преобразуем id в ObjectId
     const objectId = new ObjectId(id);
+
+    // Ищем студента по _id
     const student = await db.collection('Students').findOne({ _id: objectId });
     if (student) {
         return new Student({ ...student });
     }
 
+    // Ищем преподавателя по _id
     const teacher = await db.collection('Teachers').findOne({ _id: objectId });
     if (teacher) {
         return new Teacher({ ...teacher });
     }
 
-    return null;
+    return null; // Если пользователь не найден
 }
 
 async function findStudentByTgId(tgId) {
-    const db = await connectToDatabase(process.env.MARHI_MONGODB_URI);
+    const db = await connectToDatabase();
     return db.collection('Students').findOne({ tgId });
 }
 
 async function findTeacherByTgId(tgId) {
-    const db = await connectToDatabase(process.env.MARHI_MONGODB_URI);
+    const db = await connectToDatabase();
     return db.collection('Teachers').findOne({ tgId });
 }
 
@@ -66,11 +70,11 @@ async function findPersonByTgId(tgId) {
         return new Teacher({ ...teacher });
     }
 
-    return null;
+    return null; // Если пользователь не найден
 }
 
 async function findPersonByEmail(email) {
-    const db = await connectToDatabase(process.env.MARHI_MONGODB_URI);
+    const db = await connectToDatabase();
 
     const student = await db.collection('Students').findOne({ email });
     if (student) {
@@ -82,19 +86,22 @@ async function findPersonByEmail(email) {
         return new Teacher({ ...teacher });
     }
 
-    return null;
+    return null; // Если пользователь не найден
 }
 
 async function updatePersonTgId(userId, tgId, collectionName) {
-    const db = await connectToDatabase(process.env.MARHI_MONGODB_URI);
+    const db = await connectToDatabase();
 
     try {
+        // Преобразуем строку userId в ObjectId
         const objectId = new ObjectId(userId);
+
         const result = await db.collection(collectionName).updateOne(
-            { _id: objectId },
-            { $set: { tgId } }
+            { _id: objectId }, // Ищем документ по ObjectId
+            { $set: { tgId } } // Обновляем поле tgId
         );
 
+        // Проверяем, был ли обновлен документ
         if (result.modifiedCount === 1) {
             console.log(`[updatePersonTgId] tgId успешно обновлен для пользователя с _id: ${userId}`);
         } else {
