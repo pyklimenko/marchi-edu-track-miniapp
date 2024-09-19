@@ -11,7 +11,7 @@ async function connectToDatabase() {
         }
         client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
         await client.connect();
-        db = client.db();  // Указывайте название базы данных, если необходимо
+        db = client.db('MARHI');
     }
     return db;
 }
