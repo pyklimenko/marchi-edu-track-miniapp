@@ -1,3 +1,6 @@
+// src/utils/api-helpers.js
+import logger from './logger';
+
 export async function handleApiRequest(url, body, method = 'POST') {
   try {
     const options = {
@@ -5,21 +8,26 @@ export async function handleApiRequest(url, body, method = 'POST') {
       headers: { 'Content-Type': 'application/json' }
     };
 
-    if (method !== 'GET') {
+    if (method !== 'GET' && body) {
       options.body = JSON.stringify(body);
     }
 
     const response = await fetch(url, options);
 
-    // Проверка на 404 ошибку
     if (response.status === 404) {
       throw new Error('Маршрут не найден (404)');
     }
 
-    if (!response.ok) throw new Error('Ошибка запроса');
-    return await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Ошибка запроса: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    logger.info('Успешный ответ от %s: %o', url, data);
+    return data;
   } catch (error) {
-    console.error('Ошибка при выполнении запроса', error);
+    logger.error('Ошибка при выполнении запроса к %s: %o', url, error);
     return null;
   }
 }

@@ -1,5 +1,7 @@
+// src/components/PersonInfo.js
 import React, { useState, useEffect } from 'react';
 import { handleApiRequest } from '../utils/api-helpers';
+import logger from '../utils/logger';
 
 function PersonInfo({ userType }) {
   const [person, setPerson] = useState(null);
@@ -7,8 +9,17 @@ function PersonInfo({ userType }) {
   useEffect(() => {
     const fetchPerson = async () => {
       const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-      const data = await handleApiRequest(`/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
-      if (data?.type === userType) setPerson(data);
+      if (!tgId) {
+        logger.error('Telegram user ID не найден');
+        return;
+      }
+      const data = await handleApiRequest(`/api/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
+      if (data?.type === userType) {
+        setPerson(data);
+        logger.info('Данные пользователя получены: %o', data);
+      } else {
+        logger.warn('Пользователь с tgId %s не найден или тип не соответствует', tgId);
+      }
     };
     fetchPerson();
   }, [userType]);

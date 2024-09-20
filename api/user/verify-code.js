@@ -1,37 +1,36 @@
+// api/user/verify-code.js
 const { findPersonById, updatePersonTgId, Student, Teacher } = require('../db/db-queries');
+const logger = require('../../utils/logger');
 
 module.exports = async (req, res) => {
     const { _id, code, tgUserId } = req.body;
 
-    console.log(`[verify-code] Получен запрос на сравнение ${_id} с ${code}`);
+    logger.info('Получен запрос на верификацию кода для пользователя с ID: %s', _id);
 
     try {
         if (_id === code) {
-            console.log(`[verify-code] Код верный, регистрация завершена для пользователя с _id: ${_id}`);
+            logger.info('Код подтверждения верен для пользователя с ID: %s', _id);
 
             const person = await findPersonById(_id);
             if (person) {
-                console.log(`[verify-code] Пользователь найден: ${person.firstName} ${person.lastName}`);
-                
-                if (person instanceof Student) {
-                    console.log(`[verify-code] Найден студент с tgId: ${tgUserId}`);
-                    await updatePersonTgId(_id, tgUserId, 'Students');
-                } else if (person instanceof Teacher) {
-                    console.log(`[verify-code] Найден преподаватель с tgId: ${tgUserId}`);
-                    await updatePersonTgId(_id, tgUserId, 'Teachers');
-                }
-                
+                logger.info('Пользователь найден: %s %s', person.firstName, person.lastName);
+
+                const collectionName = person instanceof Student ? 'Students' : 'Teachers';
+                await updatePersonTgId(_id, tgUserId, collectionName);
+
+                logger.info('tgId обновлен для пользователя с ID: %s', _id);
+
                 res.status(200).json({ message: 'Регистрация завершена' });
             } else {
-                console.log(`[verify-code] Пользователь с _id: ${_id} не найден`);
+                logger.warn('Пользователь с ID %s не найден', _id);
                 res.status(404).json({ error: 'Пользователь не найден' });
             }
         } else {
-            console.log(`[verify-code] Неверный код для пользователя с _id: ${_id}`);
+            logger.warn('Неверный код подтверждения для пользователя с ID: %s', _id);
             res.status(400).json({ error: 'Неверный код' });
         }
     } catch (error) {
-        console.error(`[verify-code] Ошибка при проверке кода для пользователя с _id: ${_id}`, error);
+        logger.error('Ошибка при верификации кода для пользователя с ID %s: %o', _id, error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 };

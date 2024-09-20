@@ -1,5 +1,7 @@
+// src/components/RegistrationForm.js
 import React, { useState, useEffect } from 'react';
 import { handleApiRequest } from '../utils/api-helpers';
+import logger from '../utils/logger';
 
 function RegistrationForm() {
   const [email, setEmail] = useState('');
@@ -10,9 +12,11 @@ function RegistrationForm() {
   useEffect(() => {
     const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
     if (!tgUser) {
+      logger.error('Не удалось инициализировать Telegram WebApp.');
       alert('Не удалось инициализировать Telegram WebApp.');
       return;
     }
+    logger.info('Telegram WebApp успешно инициализирован. Пользователь: ', tgUser);
   }, []);
 
   const handleSubmit = async (e) => {
@@ -21,8 +25,10 @@ function RegistrationForm() {
     if (data) {
       localStorage.setItem('dbUserId', data._id);
       setError('');
+      logger.info('Код отправлен на email: %s', email);
     } else {
       setError('Пользователь не найден');
+      logger.warn('Пользователь с email %s не найден', email);
     }
   };
 
@@ -37,8 +43,10 @@ function RegistrationForm() {
     if (data) {
       setIsRegistered(true);
       setError('');
+      logger.info('Пользователь успешно зарегистрирован с tgId: %s', tgUser?.id);
     } else {
       setError('Неверный код');
+      logger.warn('Введён неверный код для пользователя с ID: %s', dbUserId);
     }
   };
 

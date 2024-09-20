@@ -1,5 +1,6 @@
 const { ObjectId } = require('mongodb');
-const connectToDatabase = require('../db/db-connect');
+const connectToDatabase = require('./db-connect');
+const logger = require('../../utils/logger');
 
 class Person {
     constructor({ _id, lastName, firstName, middleName, phoneNumber, email, tgId, tgUserName }) {
@@ -30,23 +31,27 @@ class Teacher extends Person {
 
 async function findPersonById(id) {
     const db = await connectToDatabase();
-    
-    // Преобразуем id в ObjectId
     const objectId = new ObjectId(id);
 
-    // Ищем студента по _id
-    const student = await db.collection('Students').findOne({ _id: objectId });
-    if (student) {
-        return new Student({ ...student });
-    }
+    try {
+        const student = await db.collection('Students').findOne({ _id: objectId });
+        if (student) {
+            logger.info('Студент найден с ID: %s', id);
+            return new Student({ ...student });
+        }
 
-    // Ищем преподавателя по _id
-    const teacher = await db.collection('Teachers').findOne({ _id: objectId });
-    if (teacher) {
-        return new Teacher({ ...teacher });
-    }
+        const teacher = await db.collection('Teachers').findOne({ _id: objectId });
+        if (teacher) {
+            logger.info('Преподаватель найден с ID: %s', id);
+            return new Teacher({ ...teacher });
+        }
 
-    return null; // Если пользователь не найден
+        logger.warn('Пользователь с ID %s не найден', id);
+        return null;
+    } catch (error) {
+        logger.error('Ошибка при поиске пользователя по ID %s: %o', id, error);
+        throw error;
+    }
 }
 
 async function findStudentByTgId(tgId) {

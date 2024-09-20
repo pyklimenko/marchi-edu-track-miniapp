@@ -1,37 +1,28 @@
 const { findPersonByTgId, Student, Teacher } = require('../db/db-queries');
+const logger = require('../../utils/logger');
 
 module.exports = async (req, res) => {
     let { tgId } = req.query;
 
-    console.log(`[find-by-tgId] В запросе tgId: ${tgId}`);
+    logger.info('Получен запрос на поиск пользователя с tgId: %s', tgId);
 
     tgId = parseInt(tgId, 10);
-
-    // console.log(`[find-by-tgId] Получен запрос на поиск пользователя с tgId: ${tgId}`);
 
     try {
         const person = await findPersonByTgId(tgId);
         if (person) {
-            console.log(`[find-by-tgId] Пользователь найден: ${person.firstName} ${person.lastName}`);
-            if (person instanceof Student) {
-                console.log(`[find-by-tgId] Найден студент с tgId: ${tgId}`);
-                res.status(200).json({ 
-                    type: 'student',
-                    ...person
-                });
-            } else if (person instanceof Teacher) {
-                console.log(`[find-by-tgId] Найден преподаватель с tgId: ${tgId}`);
-                res.status(200).json({ 
-                    type: 'teacher',
-                    ...person
-                });
-            }
+            logger.info('Пользователь найден: %s %s', person.firstName, person.lastName);
+            const userType = person instanceof Student ? 'student' : 'teacher';
+            res.status(200).json({
+                type: userType,
+                ...person
+            });
         } else {
-            console.log(`[find-by-tgId] Пользователь с tgId: ${tgId} не найден`);
+            logger.warn('Пользователь с tgId %s не найден', tgId);
             res.status(404).json({ error: 'Пользователь не найден' });
         }
     } catch (error) {
-        console.error(`[find-by-tgId] Ошибка при поиске пользователя с tgId: ${tgId}`, error);
+        logger.error('Ошибка при поиске пользователя с tgId %s: %o', tgId, error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 };

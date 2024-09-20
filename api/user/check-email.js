@@ -1,33 +1,37 @@
+// api/user/check-email.js
 const { findPersonByEmail } = require('../db/db-queries');
 const sendGmailWithRetry = require('../google/google-mail');
+const logger = require('../../utils/logger');
 
 module.exports = async (req, res) => {
-    const { email } = req.body;
-
-    console.log(`[check-email] Получен запрос на поиск пользователя с email: ${email}`);
-
     try {
+        const { email } = req.body;
+
+        logger.info('Получен запрос на проверку email: %s', email);
+
         const person = await findPersonByEmail(email);
         if (person) {
-            console.log(`[check-email] Пользователь найден: ${person.firstName} ${person.lastName}`);
-            
-            res.status(200).json({ 
+            logger.info('Пользователь найден: %s %s', person.firstName, person.lastName);
+
+            res.status(200).json({
                 _id: person._id,
                 email: person.email,
                 tgId: person.tgId
             });
 
-            console.log(`[check-email] Сейчас будем отправлять письмо`);
+            logger.info('Отправка кода регистрации на email: %s', email);
 
-            await sendGmailWithRetry(person.email, 'Код регистрации в MARHIEduTrack', 
+            await sendGmailWithRetry(
+                person.email,
+                'Код регистрации в MARHIEduTrack',
                 `Привет, ${person.firstName}. Чтобы завершить регистрацию, используй код ${person._id}.`
             );
         } else {
-            console.log(`[check-email] Пользователь с email: ${email} не найден`);
+            logger.warn('Пользователь с email %s не найден', email);
             res.status(404).json({ error: 'Пользователь не найден' });
         }
     } catch (error) {
-        console.error(`[check-email] Ошибка при поиске пользователя с email: ${email}`, error);
+        logger.error('Ошибка в обработке запроса check-email: %o', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 };
