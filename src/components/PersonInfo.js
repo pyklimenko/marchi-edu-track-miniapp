@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { handleApiRequest } from '../utils/api-helpers';
 import logger from '../utils/logger';
+import RegistrationForm from './RegistrationForm'; // Добавьте этот импорт
 
 function PersonInfo({ userType }) {
   const [person, setPerson] = useState(null);
@@ -39,7 +40,15 @@ function PersonInfo({ userType }) {
 
   return (
     <div>
-      {/* Отображение информации о пользователе */}
+      <h1>{userType === 'student' ? 'Информация о студенте' : 'Информация о преподавателе'}</h1>
+      <div>ID: {person.tgId}</div>
+      <div>Имя: {person.firstName}</div>
+      <div>Фамилия: {person.lastName}</div>
+      {userType === 'student' ? (
+        <div>Номер зачётки: {person.gradeBookId}</div>
+      ) : (
+        <div>Кафедра: {person.department}</div>
+      )}
     </div>
   );
 }
