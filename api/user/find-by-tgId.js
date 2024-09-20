@@ -3,6 +3,12 @@ const { findPersonByTgId, Student, Teacher } = require('../db/db-queries');
 module.exports = async (req, res) => {
     let { tgId } = req.query;
 
+    // Проверка, что tgId не равен "NA" и является числом
+    if (tgId === 'NA' || isNaN(parseInt(tgId, 10))) {
+        console.log(`[find-by-tgId] Некорректный tgId: ${tgId}`);
+        return res.status(400).json({ error: 'Некорректный tgId' });
+    }
+
     tgId = parseInt(tgId, 10);
 
     console.log(`[find-by-tgId] Получен запрос на поиск пользователя с tgId: ${tgId}`);
@@ -15,13 +21,13 @@ module.exports = async (req, res) => {
                 console.log(`[find-by-tgId] Найден студент с tgId: ${tgId}`);
                 res.status(200).json({ 
                     type: 'student',
-                    ...person.toObject() // Так как используется MongoDB Document
+                    ...person 
                 });
             } else if (person instanceof Teacher) {
                 console.log(`[find-by-tgId] Найден преподаватель с tgId: ${tgId}`);
                 res.status(200).json({ 
                     type: 'teacher',
-                    ...person.toObject() // Так как используется MongoDB Document
+                    ...person
                 });
             }
         } else {
