@@ -25,16 +25,8 @@ function RegistrationForm() {
   // Добавляем новый useEffect для перенаправления после успешной регистрации
   useEffect(() => {
     if (isRegistered) {
-      console.log('useEffect triggered: isRegistered is true');
-      const timer = setTimeout(() => {
-        console.log('Timer completed. Navigating to home.');
-        navigate('/', { replace: true });
-      }, 3000);
-  
-      return () => {
-        console.log('Cleaning up timer');
-        clearTimeout(timer);
-      };
+      console.log('Navigating immediately without timeout');
+      navigate('/', { replace: true });
     }
   }, [isRegistered, navigate]);
   
