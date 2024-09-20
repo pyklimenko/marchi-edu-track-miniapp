@@ -1,5 +1,6 @@
-// src/components/RegistrationForm.js
+// src/components/registrationForm.js
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { handleApiRequest } from '../utils/api-helpers';
 import logger from '../utils/logger';
 
@@ -7,6 +8,7 @@ function RegistrationForm() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
+  const navigate = useNavigate();
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -18,6 +20,17 @@ function RegistrationForm() {
     }
     logger.info('Telegram WebApp успешно инициализирован. Пользователь: ', tgUser);
   }, []);
+
+  // Добавляем новый useEffect для перенаправления после успешной регистрации
+  useEffect(() => {
+    if (isRegistered) {
+      const timer = setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 3000); // Перенаправляем через 3 секунды
+
+      return () => clearTimeout(timer); // Очищаем таймер при размонтировании компонента
+    }
+  }, [isRegistered, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,7 +54,7 @@ function RegistrationForm() {
       tgUserId: tgUser?.id,
     });
     if (data) {
-      setIsRegistered(true);
+      setIsRegistered(true); // Устанавливаем isRegistered в true
       setError('');
       logger.info('Пользователь успешно зарегистрирован с tgId: %s', tgUser?.id);
     } else {
@@ -51,7 +64,10 @@ function RegistrationForm() {
   };
 
   return isRegistered ? (
-    <div>Вы успешно зарегистрировались!</div>
+    <div>
+      <p>Вы успешно зарегистрировались!</p>
+      <p>Сейчас вы будете перенаправлены...</p>
+    </div>
   ) : (
     <div>
       <form onSubmit={handleSubmit}>
