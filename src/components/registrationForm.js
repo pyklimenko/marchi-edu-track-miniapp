@@ -24,10 +24,14 @@ function RegistrationForm() {
   // Добавляем новый useEffect для перенаправления после успешной регистрации
   useEffect(() => {
     if (isRegistered) {
-      console.log('Navigating immediately without timeout');
-      navigate('/', { replace: true });
+      const timer = setTimeout(() => {
+        window.location.href = '/';
+      }, 3000);
+  
+      return () => clearTimeout(timer);
     }
-  }, [isRegistered, navigate]);
+  }, [isRegistered]);
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
