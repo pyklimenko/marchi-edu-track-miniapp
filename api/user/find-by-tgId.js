@@ -3,11 +3,7 @@ const { findPersonByTgId, Student, Teacher } = require('../db/db-queries');
 module.exports = async (req, res) => {
     let { tgId } = req.query;
 
-    // Проверка, что tgId не равен "NA" и является числом
-    if (tgId === 'NA' || isNaN(parseInt(tgId, 10))) {
-        console.log(`[find-by-tgId] Некорректный tgId: ${tgId}`);
-        return res.status(400).json({ error: 'Некорректный tgId' });
-    }
+    console.log(`[find-by-tgId] В запросе tgId: ${tgId}`);
 
     tgId = parseInt(tgId, 10);
 
