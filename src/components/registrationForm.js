@@ -24,11 +24,16 @@ function RegistrationForm() {
   // Добавляем новый useEffect для перенаправления после успешной регистрации
   useEffect(() => {
     if (isRegistered) {
+      console.log('useEffect triggered: isRegistered is true');
       const timer = setTimeout(() => {
+        console.log('Timer completed. Navigating to home.');
         navigate('/', { replace: true });
       }, 3000); // Перенаправляем через 3 секунды
 
-      return () => clearTimeout(timer); // Очищаем таймер при размонтировании компонента
+      return () => {
+        console.log('Cleaning up timer');
+        clearTimeout(timer);
+      };
     }
   }, [isRegistered, navigate]);
 
@@ -55,6 +60,7 @@ function RegistrationForm() {
     });
     if (data) {
       setIsRegistered(true); // Устанавливаем isRegistered в true
+      console.log('isRegistered set to true');
       setError('');
       logger.info('Пользователь успешно зарегистрирован с tgId: %s', tgUser?.id);
     } else {
