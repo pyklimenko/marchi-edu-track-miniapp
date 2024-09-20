@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Папки и файлы, которые нужно игнорировать
-const ignoredDirs = ['node_modules', '.vercel', '.git'];
+const ignoredDirs = ['node_modules', '.vercel', '.git', 'otherFiles'];
 const ignoredFiles = ['package-lock.json', 'collect-project-for-chatgpt.js', 'test-env.js', 'test-google-auth.js'];
 
 // Функция для записи кода в файл
@@ -37,7 +37,7 @@ function processDirectory(dir, outputPath) {
 }
 
 // Путь к результирующему файлу
-const outputFilePath = path.join(__dirname, 'utils', 'chatgpt-project-collection.txt');
+const outputFilePath = path.join(__dirname, 'otherFiles', 'chatgpt-project-collection.txt');
 
 // Удаление файла, если он уже существует
 if (fs.existsSync(outputFilePath)) {
@@ -45,8 +45,8 @@ if (fs.existsSync(outputFilePath)) {
 }
 
 // Создание папки Utils, если она не существует
-if (!fs.existsSync(path.join(__dirname, 'utils'))) {
-    fs.mkdirSync(path.join(__dirname, 'utils'));
+if (!fs.existsSync(path.join(__dirname, 'otherFiles'))) {
+    fs.mkdirSync(path.join(__dirname, 'otherFiles'));
 }
 
 // Запуск обработки файлов с текущей директории

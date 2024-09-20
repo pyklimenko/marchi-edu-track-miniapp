@@ -1,0 +1,835 @@
+[.env]
+
+MARHI_MONGODB_URI=mongodb+srv://petrklimenko:SgxG1AwKCq9FLgnG@studentsgrades.fhxjnip.mongodb.net/?retryWrites=true&w=majority&appName=StudentsGrades
+CLIENT_ID=579047027905-cg8h9n9l6h4fhmvkff9phmev7tpfj3nm.apps.googleusercontent.com
+CLIENT_SECRET=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
+REDIRECT_URIS=http://localhost:8000/oauth2callback
+GMAIL_ACCESS_TOKEN=ya29.a0AcM612xt_ouTRHzTEWfbRjxo92ovLQ-lnMLZRm1KarM0I80GxYBIIkaTgelngY2SHy76th4Ce9voAAgOUrCcfOpZ4X2fZm-uoKqGMCN7UEew0sTe6k5SDPVp_v5p6oWYx9Gae_uH2K7dQ4I5gnTqUKXCFVzyQ9vl6NqdtR8EaCgYKARASARASFQHGX2Miyrlkzgk-NOeYKl5j6kZdKg0175
+GMAIL_REFRESH_TOKEN=1//03fIIusel4LYzCgYIARAAGAMSNwF-L9IrKsLT5hVlBvnmbum06m08-33QXFCFHRpvfzs5QEe90gna-P_j4qbv36Uv_gKH52oYKj4
+
+
+[.gitignore]
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# production
+/build
+
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.vercel
+
+
+[api\db\db-connect.js]
+
+const { MongoClient } = require('mongodb');
+
+let client;
+let db;
+
+async function connectToDatabase() {
+    if (!client) {
+        const uri = process.env.MARHI_MONGODB_URI;
+        if (!uri) {
+            throw new Error('MARHI_MONGODB_URI is not defined');
+        }
+        client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+        await client.connect();
+        db = client.db('MARHI');
+    }
+    return db;
+}
+
+module.exports = connectToDatabase;
+
+
+[api\db\db-queries.js]
+
+const { ObjectId } = require('mongodb');
+const connectToDatabase = require('../db/db-connect');
+
+class Person {
+    constructor({ _id, lastName, firstName, middleName, phoneNumber, email, tgId, tgUserName }) {
+        this._id = _id;
+        this.lastName = lastName;
+        this.firstName = firstName;
+        this.middleName = middleName;
+        this.phoneNumber = phoneNumber;
+        this.email = email;
+        this.tgId = tgId;
+        this.tgUserName = tgUserName;
+    }
+}
+
+class Student extends Person {
+    constructor({ gradeBookId, ...person }) {
+        super(person);
+        this.gradeBookId = gradeBookId;
+    }
+}
+
+class Teacher extends Person {
+    constructor({ department, ...person }) {
+        super(person);
+        this.department = department;
+    }
+}
+
+async function findPersonById(id) {
+    const db = await connectToDatabase();
+    
+    // Преобразуем id в ObjectId
+    const objectId = new ObjectId(id);
+
+    // Ищем студента по _id
+    const student = await db.collection('Students').findOne({ _id: objectId });
+    if (student) {
+        return new Student({ ...student });
+    }
+
+    // Ищем преподавателя по _id
+    const teacher = await db.collection('Teachers').findOne({ _id: objectId });
+    if (teacher) {
+        return new Teacher({ ...teacher });
+    }
+
+    return null; // Если пользователь не найден
+}
+
+async function findStudentByTgId(tgId) {
+    const db = await connectToDatabase();
+    return db.collection('Students').findOne({ tgId });
+}
+
+async function findTeacherByTgId(tgId) {
+    const db = await connectToDatabase();
+    return db.collection('Teachers').findOne({ tgId });
+}
+
+async function findPersonByTgId(tgId) {
+    const student = await findStudentByTgId(tgId);
+    if (student) {
+        return new Student({ ...student });
+    }
+
+    const teacher = await findTeacherByTgId(tgId);
+    if (teacher) {
+        return new Teacher({ ...teacher });
+    }
+
+    return null; // Если пользователь не найден
+}
+
+async function findPersonByEmail(email) {
+    const db = await connectToDatabase();
+
+    console.log(`[db-queries] Ищем среди студентов документ с email: ${email}`);
+
+    const student = await db.collection('Students').findOne({ email });
+    if (student) {
+        return new Student({ ...student });
+    }
+
+    console.log(`[db-queries] Ищем среди преподавателей документ с email: ${email}`);
+
+    const teacher = await db.collection('Teachers').findOne({ email });
+    if (teacher) {
+        return new Teacher({ ...teacher });
+    }
+
+    return null; // Если пользователь не найден
+}
+
+async function updatePersonTgId(userId, tgId, collectionName) {
+    const db = await connectToDatabase();
+
+    try {
+        // Преобразуем строку userId в ObjectId
+        const objectId = new ObjectId(userId);
+
+        const result = await db.collection(collectionName).updateOne(
+            { _id: objectId }, // Ищем документ по ObjectId
+            { $set: { tgId } } // Обновляем поле tgId
+        );
+
+        // Проверяем, был ли обновлен документ
+        if (result.modifiedCount === 1) {
+            console.log(`[updatePersonTgId] tgId успешно обновлен для пользователя с _id: ${userId}`);
+        } else {
+            console.log(`[updatePersonTgId] Не удалось обновить tgId для пользователя с _id: ${userId}. Документ не найден.`);
+        }
+    } catch (error) {
+        console.error(`[updatePersonTgId] Ошибка при обновлении tgId для пользователя с _id: ${userId}`, error);
+    }
+}
+
+module.exports = { findPersonById, findPersonByEmail, findStudentByTgId, findTeacherByTgId, findPersonByTgId, updatePersonTgId, Student, Teacher };
+
+
+[api\google\google-auth.js]
+
+const { google } = require('googleapis');
+
+async function googleAuthorize() {
+    const client_id = process.env.CLIENT_ID;
+    const client_secret = process.env.CLIENT_SECRET;
+    const redirect_uris = [process.env.REDIRECT_URIS];
+
+    console.log('Тут была проверка переменных окружения.');
+
+    console.log('Пытаемся авторизоваться в Google...');
+
+    const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+
+    const accessToken = process.env.GMAIL_ACCESS_TOKEN;
+    const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
+
+    console.log('Проверка токенов:');
+    console.log('Access Token:', !!accessToken);
+    console.log('Refresh Token:', !!refreshToken);
+
+    try {
+        if (accessToken && refreshToken) {
+            console.log('Устанавливаем токены...');
+            oAuth2Client.setCredentials({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+            });
+            console.log('Токены успешно установлены.');
+            return oAuth2Client;
+        } else {
+            console.error('Токены отсутствуют в переменных окружения');
+            // throw new Error('Токены отсутствуют в переменных окружения');
+        }
+    } catch (error) {
+        console.error('Произошла ошибка при авторизации');
+        if (error.response) {
+            console.error('Ошибка при авторизации:', error.response.data);
+            console.error('Ошибка от Google API:', {
+                status: error.response.status,
+                headers: error.response.headers,
+                data: error.response.data
+            });
+        } else {
+            console.error('Ошибка при авторизации:', error.message);
+        }
+        // throw error;
+    }
+}
+
+module.exports = googleAuthorize;
+
+
+[api\google\google-mail.js]
+
+const { google } = require('googleapis');
+const googleAuthorize = require('./google-auth');
+
+async function sendGmailWithRetry(to, subject, message, retryCount = 3) {
+    for (let attempt = 1; attempt <= retryCount; attempt++) {
+        try {
+            await sendGmail(to, subject, message);
+            return; // Если письмо успешно отправлено
+        } catch (error) {
+            console.error(`Попытка ${attempt} отправки письма не удалась. Ошибка:`, error);
+            if (attempt === retryCount) {
+                throw new Error('Письмо не отправлено после нескольких попыток');
+            }
+        }
+    }
+}
+
+async function sendGmail(to, subject, message) {
+    try {
+        console.log('Пытаемся отправить письмо...');
+        const startTime = new Date();  // Логирование времени начала отправки
+
+        console.log(`Отправка на адрес: ${to}`);
+        console.log(`Тема письма: ${subject}`);
+        console.log('Текст сообщения:', message);
+
+        const auth = await googleAuthorize();
+        console.log('Авторизация завершена.');
+
+        console.log('Инициализация Gmail API...');
+        const gmail = google.gmail({ version: 'v1', auth: auth });
+        console.log('Gmail API инициализирован.');
+
+        console.log('Готовим сообщение...');
+        const subjectBase64 = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
+        const email = [
+            `To: ${to}`,
+            `Subject: ${subjectBase64}`,
+            'MIME-Version: 1.0',
+            'Content-Type: text/plain; charset="UTF-8"',
+            'Content-Transfer-Encoding: 7bit',
+            '',
+            message,
+        ].join('\n');
+
+        console.log('Письмо подготовлено, кодируем...');
+        const encodedMessage = Buffer.from(email)
+            .toString('base64')
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=+$/, '');
+
+        console.log('Запрос на отправку письма инициирован...');
+        const result = await gmail.users.messages.send({
+            userId: 'me',
+            requestBody: {
+                raw: encodedMessage,
+            },
+        });
+
+        console.log('Ответ от Gmail API получен...');
+
+        console.log(`Операция завершена за ${new Date() - startTime} мс`);  // Время выполнения
+
+        // Проверка статуса ответа
+        if (result.status === 200) {
+            console.log(`Письмо успешно отправлено: ${result.data.id}`);
+        } else if (result.status === 429) {
+            console.error('Превышены квоты на запросы к API. Попробуйте позже.');
+            throw new Error('Превышены квоты API');
+        } else {
+            console.error(`Ошибка отправки письма. Статус: ${result.status}`);
+        }
+
+    } catch (error) {
+        if (error.response) {
+            // Логирование более подробного ответа об ошибке от Google API
+            console.error('Ошибка при отправке письма:', error.response.data);
+            console.error('Ошибка от Google API:', {
+                status: error.response.status,
+                headers: error.response.headers,
+                data: error.response.data
+            });
+        } else {
+            console.error('Ошибка при отправке письма:', error.message);
+        }
+        throw error;
+    }
+}
+
+module.exports = sendGmailWithRetry;
+
+
+[api\telegram\telegram-web.js]
+
+export function getTelegramUser() {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initDataUnsafe && window.Telegram.WebApp.initDataUnsafe.user) {
+        return window.Telegram.WebApp.initDataUnsafe.user;
+    } else {
+        console.error("Telegram WebApp не инициализирован или пользователь не доступен");
+        return null;
+    }
+}
+
+
+[api\user\check-email.js]
+
+const { findPersonByEmail } = require('../db/db-queries');
+const sendGmailWithRetry = require('../google/google-mail');
+
+module.exports = async (req, res) => {
+    const { email } = req.body;
+
+    console.log(`[check-email] Получен запрос на поиск пользователя с email: ${email}`);
+
+    try {
+        const person = await findPersonByEmail(email);
+        if (person) {
+            console.log(`[check-email] Пользователь найден: ${person.firstName} ${person.lastName}`);
+            
+            res.status(200).json({ 
+                _id: person._id,
+                email: person.email,
+                tgId: person.tgId
+            });
+
+            console.log(`[check-email] Сейчас будем отправлять письмо`);
+
+            await sendGmailWithRetry(person.email, 'Код регистрации в MARHIEduTrack', 
+                `Привет, ${person.firstName}. Чтобы завершить регистрацию, используй код ${person._id}.`
+            );
+        } else {
+            console.log(`[check-email] Пользователь с email: ${email} не найден`);
+            res.status(404).json({ error: 'Пользователь не найден' });
+        }
+    } catch (error) {
+        console.error(`[check-email] Ошибка при поиске пользователя с email: ${email}`, error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+};
+
+
+[api\user\find-by-tgId.js]
+
+const { findPersonByTgId, Student, Teacher } = require('../db/db-queries');
+
+module.exports = async (req, res) => {
+    let { tgId } = req.query;
+
+    console.log(`[find-by-tgId] В запросе tgId: ${tgId}`);
+
+    tgId = parseInt(tgId, 10);
+
+    // console.log(`[find-by-tgId] Получен запрос на поиск пользователя с tgId: ${tgId}`);
+
+    try {
+        const person = await findPersonByTgId(tgId);
+        if (person) {
+            console.log(`[find-by-tgId] Пользователь найден: ${person.firstName} ${person.lastName}`);
+            if (person instanceof Student) {
+                console.log(`[find-by-tgId] Найден студент с tgId: ${tgId}`);
+                res.status(200).json({ 
+                    type: 'student',
+                    ...person
+                });
+            } else if (person instanceof Teacher) {
+                console.log(`[find-by-tgId] Найден преподаватель с tgId: ${tgId}`);
+                res.status(200).json({ 
+                    type: 'teacher',
+                    ...person
+                });
+            }
+        } else {
+            console.log(`[find-by-tgId] Пользователь с tgId: ${tgId} не найден`);
+            res.status(404).json({ error: 'Пользователь не найден' });
+        }
+    } catch (error) {
+        console.error(`[find-by-tgId] Ошибка при поиске пользователя с tgId: ${tgId}`, error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+};
+
+
+[api\user\verify-code.js]
+
+const { findPersonById, updatePersonTgId, Student, Teacher } = require('../db/db-queries');
+
+module.exports = async (req, res) => {
+    const { _id, code, tgUserId } = req.body;
+
+    console.log(`[verify-code] Получен запрос на сравнение ${_id} с ${code}`);
+
+    try {
+        if (_id === code) {
+            console.log(`[verify-code] Код верный, регистрация завершена для пользователя с _id: ${_id}`);
+
+            const person = await findPersonById(_id);
+            if (person) {
+                console.log(`[verify-code] Пользователь найден: ${person.firstName} ${person.lastName}`);
+                
+                if (person instanceof Student) {
+                    console.log(`[verify-code] Найден студент с tgId: ${tgUserId}`);
+                    await updatePersonTgId(_id, tgUserId, 'Students');
+                } else if (person instanceof Teacher) {
+                    console.log(`[verify-code] Найден преподаватель с tgId: ${tgUserId}`);
+                    await updatePersonTgId(_id, tgUserId, 'Teachers');
+                }
+                
+                res.status(200).json({ message: 'Регистрация завершена' });
+            } else {
+                console.log(`[verify-code] Пользователь с _id: ${_id} не найден`);
+                res.status(404).json({ error: 'Пользователь не найден' });
+            }
+        } else {
+            console.log(`[verify-code] Неверный код для пользователя с _id: ${_id}`);
+            res.status(400).json({ error: 'Неверный код' });
+        }
+    } catch (error) {
+        console.error(`[verify-code] Ошибка при проверке кода для пользователя с _id: ${_id}`, error);
+        res.status(500).json({ error: 'Ошибка сервера' });
+    }
+};
+
+
+[package.json]
+
+{
+  "name": "marchi-edu-track-miniapp",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "googleapis": "^144.0.0",
+    "mongodb": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-scripts": "5.0.1"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
+    "@testing-library/user-event": "^13.5.0",
+    "web-vitals": "^2.1.4"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}
+
+
+[public\index.html]
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MARHI EduTrack</title>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- Подключение скрипта Telegram WebApp -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Ваши основные скрипты React -->
+</body>
+</html>
+
+
+[public\vercel.json]
+
+{
+    "builds": [
+      {
+        "src": "src/index.js",
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/api/(.*)",
+        "dest": "/api/$1"
+      }
+    ]
+  }
+  
+
+[README.md]
+
+# Getting Started with Create React App
+
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+
+## Available Scripts
+
+In the project directory, you can run:
+
+### `npm start`
+
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+
+The page will reload when you make changes.\
+You may also see any lint errors in the console.
+
+### `npm test`
+
+Launches the test runner in the interactive watch mode.\
+See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+
+### `npm run build`
+
+Builds the app for production to the `build` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
+
+The build is minified and the filenames include the hashes.\
+Your app is ready to be deployed!
+
+See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+
+### `npm run eject`
+
+**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+
+If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+
+Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+
+You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+
+## Learn More
+
+You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+
+To learn React, check out the [React documentation](https://reactjs.org/).
+
+### Code Splitting
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+
+### Analyzing the Bundle Size
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+
+### Making a Progressive Web App
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+
+### Advanced Configuration
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+
+### Deployment
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+
+### `npm run build` fails to minify
+
+This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+
+[src\App.js]
+
+import React from 'react';
+import RegistrationForm from './components/RegistrationForm';
+import PersonInfo from './components/PersonInfo';
+
+function App() {
+  return (
+    <div className="App">
+      <RegistrationForm />
+      <PersonInfo userType="student" />
+      <PersonInfo userType="teacher" />
+    </div>
+  );
+}
+
+export default App;
+
+
+[src\components\PersonInfo.js]
+
+import React, { useState, useEffect } from 'react';
+import { handleApiRequest } from '../utils/api-helpers';
+
+function PersonInfo({ userType }) {
+  const [person, setPerson] = useState(null);
+
+  useEffect(() => {
+    const fetchPerson = async () => {
+      const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      const data = await handleApiRequest(`/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
+      if (data?.type === userType) setPerson(data);
+    };
+    fetchPerson();
+  }, [userType]);
+
+  if (!person) return null;
+
+  return (
+    <div>
+      <h1>{userType === 'student' ? 'Информация о студенте' : 'Информация о преподавателе'}</h1>
+      <div>ID: {person.tgId}</div>
+      <div>Имя: {person.firstName}</div>
+      <div>Фамилия: {person.lastName}</div>
+      {userType === 'student' ? (
+        <div>Номер зачётки: {person.gradeBookId}</div>
+      ) : (
+        <div>Кафедра: {person.department}</div>
+      )}
+    </div>
+  );
+}
+
+export default PersonInfo;
+
+
+[src\components\RegistrationForm.js]
+
+import React, { useState, useEffect } from 'react';
+import { handleApiRequest } from '../utils/api-helpers';
+
+function RegistrationForm() {
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (!tgUser) {
+      alert('Не удалось инициализировать Telegram WebApp.');
+      return;
+    }
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const data = await handleApiRequest('/api/user/check-email', { email });
+    if (data) {
+      localStorage.setItem('dbUserId', data._id);
+      setError('');
+    } else {
+      setError('Пользователь не найден');
+    }
+  };
+
+  const handleVerify = async () => {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    const dbUserId = localStorage.getItem('dbUserId');
+    const data = await handleApiRequest('/api/user/verify-code', {
+      _id: dbUserId,
+      code,
+      tgUserId: tgUser?.id,
+    });
+    if (data) {
+      setIsRegistered(true);
+      setError('');
+    } else {
+      setError('Неверный код');
+    }
+  };
+
+  return isRegistered ? (
+    <div>Вы успешно зарегистрировались!</div>
+  ) : (
+    <div>
+      <form onSubmit={handleSubmit}>
+        <label>
+          Введите ваш email:
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </label>
+        <button type="submit">Отправить</button>
+      </form>
+
+      <div style={{ marginTop: '20px' }}>
+        <label>
+          Введите код:
+          <input type="text" value={code} onChange={(e) => setCode(e.target.value)} required />
+        </label>
+        <button onClick={handleVerify}>Проверить</button>
+      </div>
+
+      {error && <div style={{ color: 'red' }}>{error}</div>}
+    </div>
+  );
+}
+
+export default RegistrationForm;
+
+
+[src\index.js]
+
+import React from 'react';
+import ReactDOM from 'react-dom';
+import './styles.css';
+import App from './App';
+
+ReactDOM.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+  document.getElementById('root')
+);
+
+[src\styles.css]
+
+body {
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f0f0f0;
+}
+
+.App {
+  text-align: center;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+  color: #0088cc;
+}
+
+button {
+  background-color: #0088cc;
+  color: #fff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0077bb;
+}
+
+input {
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+
+[src\utils\api-helpers.js]
+
+export async function handleApiRequest(url, body, method = 'POST') {
+  try {
+    const options = {
+      method,
+      headers: { 'Content-Type': 'application/json' }
+    };
+
+    if (method !== 'GET') {
+      options.body = JSON.stringify(body);
+    }
+
+    const response = await fetch(url, options);
+
+    // Проверка на 404 ошибку
+    if (response.status === 404) {
+      throw new Error('Маршрут не найден (404)');
+    }
+
+    if (!response.ok) throw new Error('Ошибка запроса');
+    return await response.json();
+  } catch (error) {
+    console.error('Ошибка при выполнении запроса', error);
+    return null;
+  }
+}
+
+
