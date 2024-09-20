@@ -1,6 +1,6 @@
 // src/components/teacher/teacherStatistics.js
 import React, { useEffect, useState } from 'react';
-import { handleApiRequest } from '../utils/api-helpers';
+import { handleApiRequest } from '../../utils/api-helpers';
 import logger from '../utils/logger';
 
 function TeacherStatistics() {
