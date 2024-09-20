@@ -24,15 +24,19 @@ function RegistrationForm() {
   // Добавляем новый useEffect для перенаправления после успешной регистрации
   useEffect(() => {
     if (isRegistered) {
+      console.log('useEffect triggered: isRegistered is true');
       const timer = setTimeout(() => {
-        window.location.href = '/';
+        console.log('Timer completed. Navigating to home.');
+        navigate('/', { replace: true });
       }, 3000);
   
-      return () => clearTimeout(timer);
+      return () => {
+        console.log('Cleaning up timer');
+        clearTimeout(timer);
+      };
     }
-  }, [isRegistered]);
+  }, [isRegistered, navigate]);
   
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const data = await handleApiRequest('/api/user/check-email', { email });
