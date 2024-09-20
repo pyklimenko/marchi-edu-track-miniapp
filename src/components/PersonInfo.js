@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { handleApiRequest } from '../utils/api-helpers';
 import logger from '../utils/logger';
-import RegistrationForm from './RegistrationForm'; // Добавьте этот импорт
+import RegistrationForm from './registrationForm'; // Добавьте этот импорт
 
 function PersonInfo({ userType }) {
   const [person, setPerson] = useState(null);
