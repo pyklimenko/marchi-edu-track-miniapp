@@ -7,7 +7,7 @@ function PersonInfo({ userType }) {
   useEffect(() => {
     const fetchPerson = async () => {
       const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-      const data = await handleApiRequest(`/api/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
+      const data = await handleApiRequest(`/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
       if (data?.type === userType) setPerson(data);
     };
     fetchPerson();
