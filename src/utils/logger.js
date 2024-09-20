@@ -1,4 +1,3 @@
-// src/utils/logger.js
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 const logger = {
@@ -7,9 +6,9 @@ const logger = {
       console.log(...args);
     }
   },
-  error: (...args) => {
+  info: (...args) => {
     if (isDevelopment) {
-      console.error(...args);
+      console.info(...args);
     }
   },
   warn: (...args) => {
@@ -17,9 +16,9 @@ const logger = {
       console.warn(...args);
     }
   },
-  info: (...args) => {
+  error: (...args) => {
     if (isDevelopment) {
-      console.info(...args);
+      console.error(...args);
     }
   },
 };
