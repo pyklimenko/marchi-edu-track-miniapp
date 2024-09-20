@@ -3,6 +3,7 @@ import React from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import TeacherProfile from './teacherProfile';
 import TeacherStatistics from './teacherStatistics';
+import TeacherStudentsList from './teacherStudentsList';
 
 function TeacherDashboard() {
   return (
