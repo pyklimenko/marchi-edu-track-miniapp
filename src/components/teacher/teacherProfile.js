@@ -1,6 +1,6 @@
 // src/components/teacher/TeacherProfile.js
 import React, { useContext } from 'react';
-import { UserContext } from '../context/userContext';
+import { UserContext } from '../../context/userContext';
 
 function TeacherProfile() {
   const { user } = useContext(UserContext);
