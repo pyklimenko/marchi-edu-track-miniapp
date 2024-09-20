@@ -1,7 +1,7 @@
 // src/components/teacherStudentsList.js
 import React, { useEffect, useState } from 'react';
-import { handleApiRequest } from '../utils/api-helpers';
-import logger from '../utils/logger';
+import { handleApiRequest } from '../../utils/api-helpers';
+import logger from '../../utils/logger';
 
 function TeacherStudentsList() {
   const [students, setStudents] = useState([]);
