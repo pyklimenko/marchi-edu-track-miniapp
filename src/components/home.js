@@ -2,7 +2,7 @@
 import React, { useContext } from 'react';
 import { UserContext } from '../context/userContext';
 import { Navigate } from 'react-router-dom';
-import RegistrationForm from './components/registrationForm';
+import RegistrationForm from './registrationForm';
 
 
 function Home() {
