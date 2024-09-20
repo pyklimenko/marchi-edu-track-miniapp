@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { handleApiRequest } from '../utils/api-helpers';
 import logger from '../utils/logger';
+import { TextField, Button, Typography, Container } from '@mui/material';
 
 function RegistrationForm() {
   const [email, setEmail] = useState('');
@@ -70,30 +71,55 @@ function RegistrationForm() {
   };
 
   return isRegistered ? (
-    <div>
-      <p>Вы успешно зарегистрировались!</p>
-      <p>Сейчас вы будете перенаправлены...</p>
-    </div>
+    <Container maxWidth="sm">
+      <Typography variant="h5" align="center" gutterBottom>
+        Вы успешно зарегистрировались!
+      </Typography>
+      <Typography variant="body1" align="center">
+        Сейчас вы будете перенаправлены...
+      </Typography>
+    </Container>
   ) : (
-    <div>
-      <form onSubmit={handleSubmit}>
-        <label>
-          Введите ваш email:
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <button type="submit">Отправить</button>
-      </form>
+    <Container maxWidth="sm">
+    <Typography variant="h5" align="center" gutterBottom>
+      Регистрация
+    </Typography>
+    <form onSubmit={handleSubmit}>
+      <TextField
+        label="Email"
+        variant="outlined"
+        fullWidth
+        margin="normal"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+      <Button type="submit" variant="contained" color="primary" fullWidth>
+        Отправить
+      </Button>
+    </form>
 
-      <div style={{ marginTop: '20px' }}>
-        <label>
-          Введите код:
-          <input type="text" value={code} onChange={(e) => setCode(e.target.value)} required />
-        </label>
-        <button onClick={handleVerify}>Проверить</button>
-      </div>
-
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+    <div style={{ marginTop: '20px' }}>
+      <TextField
+        label="Введите код"
+        variant="outlined"
+        fullWidth
+        margin="normal"
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        required
+      />
+      <Button onClick={handleVerify} variant="contained" color="primary" fullWidth>
+        Проверить
+      </Button>
     </div>
+
+    {error && (
+      <Typography variant="body2" color="error" align="center">
+        {error}
+      </Typography>
+    )}
+  </Container>
   );
 }
 
