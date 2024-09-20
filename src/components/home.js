@@ -2,7 +2,8 @@
 import React, { useContext } from 'react';
 import { UserContext } from '../context/userContext';
 import { Navigate } from 'react-router-dom';
-import RegistrationForm from './registrationForm';
+import RegistrationForm from './components/registrationForm';
+
 
 function Home() {
   const { user } = useContext(UserContext);
