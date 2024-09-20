@@ -8,6 +8,15 @@ GMAIL_ACCESS_TOKEN=ya29.a0AcM612xt_ouTRHzTEWfbRjxo92ovLQ-lnMLZRm1KarM0I80GxYBIIk
 GMAIL_REFRESH_TOKEN=1//03fIIusel4LYzCgYIARAAGAMSNwF-L9IrKsLT5hVlBvnmbum06m08-33QXFCFHRpvfzs5QEe90gna-P_j4qbv36Uv_gKH52oYKj4
 
 
+[.env.example]
+
+MARHI_MONGODB_URI=
+CLIENT_ID=
+CLIENT_SECRET=
+REDIRECT_URIS=
+GMAIL_ACCESS_TOKEN=
+GMAIL_REFRESH_TOKEN=
+
 [.gitignore]
 
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
@@ -25,6 +34,7 @@ GMAIL_REFRESH_TOKEN=1//03fIIusel4LYzCgYIARAAGAMSNwF-L9IrKsLT5hVlBvnmbum06m08-33Q
 
 # misc
 .DS_Store
+.env
 .env.local
 .env.development.local
 .env.test.local
@@ -39,7 +49,10 @@ yarn-error.log*
 
 [api\db\db-connect.js]
 
+// api/db/db-connect.js
+require('dotenv').config();
 const { MongoClient } = require('mongodb');
+const logger = require('../../utils/logger');
 
 let client;
 let db;
@@ -48,11 +61,18 @@ async function connectToDatabase() {
     if (!client) {
         const uri = process.env.MARHI_MONGODB_URI;
         if (!uri) {
+            logger.error('MARHI_MONGODB_URI не определен');
             throw new Error('MARHI_MONGODB_URI is not defined');
         }
         client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-        await client.connect();
-        db = client.db('MARHI');
+        try {
+            await client.connect();
+            db = client.db('MARHI');
+            logger.info('Подключение к MongoDB успешно');
+        } catch (error) {
+            logger.error('Ошибка подключения к MongoDB: %o', error);
+            throw error;
+        }
     }
     return db;
 }
@@ -63,7 +83,8 @@ module.exports = connectToDatabase;
 [api\db\db-queries.js]
 
 const { ObjectId } = require('mongodb');
-const connectToDatabase = require('../db/db-connect');
+const connectToDatabase = require('./db-connect');
+const logger = require('../../utils/logger');
 
 class Person {
     constructor({ _id, lastName, firstName, middleName, phoneNumber, email, tgId, tgUserName }) {
@@ -94,23 +115,27 @@ class Teacher extends Person {
 
 async function findPersonById(id) {
     const db = await connectToDatabase();
-    
-    // Преобразуем id в ObjectId
     const objectId = new ObjectId(id);
 
-    // Ищем студента по _id
-    const student = await db.collection('Students').findOne({ _id: objectId });
-    if (student) {
-        return new Student({ ...student });
-    }
+    try {
+        const student = await db.collection('Students').findOne({ _id: objectId });
+        if (student) {
+            logger.info('Студент найден с ID: %s', id);
+            return new Student({ ...student });
+        }
 
-    // Ищем преподавателя по _id
-    const teacher = await db.collection('Teachers').findOne({ _id: objectId });
-    if (teacher) {
-        return new Teacher({ ...teacher });
-    }
+        const teacher = await db.collection('Teachers').findOne({ _id: objectId });
+        if (teacher) {
+            logger.info('Преподаватель найден с ID: %s', id);
+            return new Teacher({ ...teacher });
+        }
 
-    return null; // Если пользователь не найден
+        logger.warn('Пользователь с ID %s не найден', id);
+        return null;
+    } catch (error) {
+        logger.error('Ошибка при поиске пользователя по ID %s: %o', id, error);
+        throw error;
+    }
 }
 
 async function findStudentByTgId(tgId) {
@@ -185,52 +210,36 @@ module.exports = { findPersonById, findPersonByEmail, findStudentByTgId, findTea
 
 [api\google\google-auth.js]
 
+// api/google/google-auth.js
+require('dotenv').config();
 const { google } = require('googleapis');
+const logger = require('../../utils/logger');
 
 async function googleAuthorize() {
     const client_id = process.env.CLIENT_ID;
     const client_secret = process.env.CLIENT_SECRET;
     const redirect_uris = [process.env.REDIRECT_URIS];
 
-    console.log('Тут была проверка переменных окружения.');
-
-    console.log('Пытаемся авторизоваться в Google...');
+    if (!client_id || !client_secret || !redirect_uris[0]) {
+        logger.error('Переменные окружения для Google API не определены');
+        throw new Error('Необходимо определить CLIENT_ID, CLIENT_SECRET и REDIRECT_URIS');
+    }
 
     const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
 
     const accessToken = process.env.GMAIL_ACCESS_TOKEN;
     const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
 
-    console.log('Проверка токенов:');
-    console.log('Access Token:', !!accessToken);
-    console.log('Refresh Token:', !!refreshToken);
-
-    try {
-        if (accessToken && refreshToken) {
-            console.log('Устанавливаем токены...');
-            oAuth2Client.setCredentials({
-                access_token: accessToken,
-                refresh_token: refreshToken,
-            });
-            console.log('Токены успешно установлены.');
-            return oAuth2Client;
-        } else {
-            console.error('Токены отсутствуют в переменных окружения');
-            // throw new Error('Токены отсутствуют в переменных окружения');
-        }
-    } catch (error) {
-        console.error('Произошла ошибка при авторизации');
-        if (error.response) {
-            console.error('Ошибка при авторизации:', error.response.data);
-            console.error('Ошибка от Google API:', {
-                status: error.response.status,
-                headers: error.response.headers,
-                data: error.response.data
-            });
-        } else {
-            console.error('Ошибка при авторизации:', error.message);
-        }
-        // throw error;
+    if (accessToken && refreshToken) {
+        oAuth2Client.setCredentials({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+        });
+        logger.info('Авторизация Google OAuth2 успешна');
+        return oAuth2Client;
+    } else {
+        logger.error('Токены доступа отсутствуют в переменных окружения');
+        throw new Error('Токены доступа отсутствуют');
     }
 }
 
@@ -239,17 +248,20 @@ module.exports = googleAuthorize;
 
 [api\google\google-mail.js]
 
+// api/google/google-mail.js
 const { google } = require('googleapis');
 const googleAuthorize = require('./google-auth');
+const logger = require('../../utils/logger');
 
 async function sendGmailWithRetry(to, subject, message, retryCount = 3) {
     for (let attempt = 1; attempt <= retryCount; attempt++) {
         try {
             await sendGmail(to, subject, message);
-            return; // Если письмо успешно отправлено
+            return;
         } catch (error) {
-            console.error(`Попытка ${attempt} отправки письма не удалась. Ошибка:`, error);
+            logger.error('Попытка %d отправки письма не удалась: %o', attempt, error);
             if (attempt === retryCount) {
+                logger.error('Письмо не отправлено после %d попыток', retryCount);
                 throw new Error('Письмо не отправлено после нескольких попыток');
             }
         }
@@ -258,21 +270,12 @@ async function sendGmailWithRetry(to, subject, message, retryCount = 3) {
 
 async function sendGmail(to, subject, message) {
     try {
-        console.log('Пытаемся отправить письмо...');
-        const startTime = new Date();  // Логирование времени начала отправки
-
-        console.log(`Отправка на адрес: ${to}`);
-        console.log(`Тема письма: ${subject}`);
-        console.log('Текст сообщения:', message);
+        const startTime = new Date();
+        logger.info('Отправка письма на: %s', to);
 
         const auth = await googleAuthorize();
-        console.log('Авторизация завершена.');
+        const gmail = google.gmail({ version: 'v1', auth });
 
-        console.log('Инициализация Gmail API...');
-        const gmail = google.gmail({ version: 'v1', auth: auth });
-        console.log('Gmail API инициализирован.');
-
-        console.log('Готовим сообщение...');
         const subjectBase64 = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
         const email = [
             `To: ${to}`,
@@ -284,14 +287,12 @@ async function sendGmail(to, subject, message) {
             message,
         ].join('\n');
 
-        console.log('Письмо подготовлено, кодируем...');
         const encodedMessage = Buffer.from(email)
             .toString('base64')
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
             .replace(/=+$/, '');
 
-        console.log('Запрос на отправку письма инициирован...');
         const result = await gmail.users.messages.send({
             userId: 'me',
             requestBody: {
@@ -299,32 +300,11 @@ async function sendGmail(to, subject, message) {
             },
         });
 
-        console.log('Ответ от Gmail API получен...');
-
-        console.log(`Операция завершена за ${new Date() - startTime} мс`);  // Время выполнения
-
-        // Проверка статуса ответа
-        if (result.status === 200) {
-            console.log(`Письмо успешно отправлено: ${result.data.id}`);
-        } else if (result.status === 429) {
-            console.error('Превышены квоты на запросы к API. Попробуйте позже.');
-            throw new Error('Превышены квоты API');
-        } else {
-            console.error(`Ошибка отправки письма. Статус: ${result.status}`);
-        }
+        const duration = new Date() - startTime;
+        logger.info('Письмо успешно отправлено на %s за %d мс. ID сообщения: %s', to, duration, result.data.id);
 
     } catch (error) {
-        if (error.response) {
-            // Логирование более подробного ответа об ошибке от Google API
-            console.error('Ошибка при отправке письма:', error.response.data);
-            console.error('Ошибка от Google API:', {
-                status: error.response.status,
-                headers: error.response.headers,
-                data: error.response.data
-            });
-        } else {
-            console.error('Ошибка при отправке письма:', error.message);
-        }
+        logger.error('Ошибка отправки письма на %s: %o', to, error);
         throw error;
     }
 }
@@ -346,36 +326,40 @@ export function getTelegramUser() {
 
 [api\user\check-email.js]
 
+// api/user/check-email.js
 const { findPersonByEmail } = require('../db/db-queries');
 const sendGmailWithRetry = require('../google/google-mail');
+const logger = require('../../utils/logger');
 
 module.exports = async (req, res) => {
-    const { email } = req.body;
-
-    console.log(`[check-email] Получен запрос на поиск пользователя с email: ${email}`);
-
     try {
+        const { email } = req.body;
+
+        logger.info('Получен запрос на проверку email: %s', email);
+
         const person = await findPersonByEmail(email);
         if (person) {
-            console.log(`[check-email] Пользователь найден: ${person.firstName} ${person.lastName}`);
-            
-            res.status(200).json({ 
+            logger.info('Пользователь найден: %s %s', person.firstName, person.lastName);
+
+            res.status(200).json({
                 _id: person._id,
                 email: person.email,
                 tgId: person.tgId
             });
 
-            console.log(`[check-email] Сейчас будем отправлять письмо`);
+            logger.info('Отправка кода регистрации на email: %s', email);
 
-            await sendGmailWithRetry(person.email, 'Код регистрации в MARHIEduTrack', 
+            await sendGmailWithRetry(
+                person.email,
+                'Код регистрации в MARHIEduTrack',
                 `Привет, ${person.firstName}. Чтобы завершить регистрацию, используй код ${person._id}.`
             );
         } else {
-            console.log(`[check-email] Пользователь с email: ${email} не найден`);
+            logger.warn('Пользователь с email %s не найден', email);
             res.status(404).json({ error: 'Пользователь не найден' });
         }
     } catch (error) {
-        console.error(`[check-email] Ошибка при поиске пользователя с email: ${email}`, error);
+        logger.error('Ошибка в обработке запроса check-email: %o', error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 };
@@ -384,39 +368,30 @@ module.exports = async (req, res) => {
 [api\user\find-by-tgId.js]
 
 const { findPersonByTgId, Student, Teacher } = require('../db/db-queries');
+const logger = require('../../utils/logger');
 
 module.exports = async (req, res) => {
     let { tgId } = req.query;
 
-    console.log(`[find-by-tgId] В запросе tgId: ${tgId}`);
+    logger.info('Получен запрос на поиск пользователя с tgId: %s', tgId);
 
     tgId = parseInt(tgId, 10);
-
-    // console.log(`[find-by-tgId] Получен запрос на поиск пользователя с tgId: ${tgId}`);
 
     try {
         const person = await findPersonByTgId(tgId);
         if (person) {
-            console.log(`[find-by-tgId] Пользователь найден: ${person.firstName} ${person.lastName}`);
-            if (person instanceof Student) {
-                console.log(`[find-by-tgId] Найден студент с tgId: ${tgId}`);
-                res.status(200).json({ 
-                    type: 'student',
-                    ...person
-                });
-            } else if (person instanceof Teacher) {
-                console.log(`[find-by-tgId] Найден преподаватель с tgId: ${tgId}`);
-                res.status(200).json({ 
-                    type: 'teacher',
-                    ...person
-                });
-            }
+            logger.info('Пользователь найден: %s %s', person.firstName, person.lastName);
+            const userType = person instanceof Student ? 'student' : 'teacher';
+            res.status(200).json({
+                type: userType,
+                ...person
+            });
         } else {
-            console.log(`[find-by-tgId] Пользователь с tgId: ${tgId} не найден`);
+            logger.warn('Пользователь с tgId %s не найден', tgId);
             res.status(404).json({ error: 'Пользователь не найден' });
         }
     } catch (error) {
-        console.error(`[find-by-tgId] Ошибка при поиске пользователя с tgId: ${tgId}`, error);
+        logger.error('Ошибка при поиске пользователя с tgId %s: %o', tgId, error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 };
@@ -424,40 +399,39 @@ module.exports = async (req, res) => {
 
 [api\user\verify-code.js]
 
+// api/user/verify-code.js
 const { findPersonById, updatePersonTgId, Student, Teacher } = require('../db/db-queries');
+const logger = require('../../utils/logger');
 
 module.exports = async (req, res) => {
     const { _id, code, tgUserId } = req.body;
 
-    console.log(`[verify-code] Получен запрос на сравнение ${_id} с ${code}`);
+    logger.info('Получен запрос на верификацию кода для пользователя с ID: %s', _id);
 
     try {
         if (_id === code) {
-            console.log(`[verify-code] Код верный, регистрация завершена для пользователя с _id: ${_id}`);
+            logger.info('Код подтверждения верен для пользователя с ID: %s', _id);
 
             const person = await findPersonById(_id);
             if (person) {
-                console.log(`[verify-code] Пользователь найден: ${person.firstName} ${person.lastName}`);
-                
-                if (person instanceof Student) {
-                    console.log(`[verify-code] Найден студент с tgId: ${tgUserId}`);
-                    await updatePersonTgId(_id, tgUserId, 'Students');
-                } else if (person instanceof Teacher) {
-                    console.log(`[verify-code] Найден преподаватель с tgId: ${tgUserId}`);
-                    await updatePersonTgId(_id, tgUserId, 'Teachers');
-                }
-                
+                logger.info('Пользователь найден: %s %s', person.firstName, person.lastName);
+
+                const collectionName = person instanceof Student ? 'Students' : 'Teachers';
+                await updatePersonTgId(_id, tgUserId, collectionName);
+
+                logger.info('tgId обновлен для пользователя с ID: %s', _id);
+
                 res.status(200).json({ message: 'Регистрация завершена' });
             } else {
-                console.log(`[verify-code] Пользователь с _id: ${_id} не найден`);
+                logger.warn('Пользователь с ID %s не найден', _id);
                 res.status(404).json({ error: 'Пользователь не найден' });
             }
         } else {
-            console.log(`[verify-code] Неверный код для пользователя с _id: ${_id}`);
+            logger.warn('Неверный код подтверждения для пользователя с ID: %s', _id);
             res.status(400).json({ error: 'Неверный код' });
         }
     } catch (error) {
-        console.error(`[verify-code] Ошибка при проверке кода для пользователя с _id: ${_id}`, error);
+        logger.error('Ошибка при верификации кода для пользователя с ID %s: %o', _id, error);
         res.status(500).json({ error: 'Ошибка сервера' });
     }
 };
@@ -475,7 +449,8 @@ module.exports = async (req, res) => {
     "mongodb": "^4.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-scripts": "5.0.1"
+    "react-scripts": "5.0.1",
+    "winston": "^3.14.2"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -543,6 +518,21 @@ module.exports = async (req, res) => {
   
 
 [README.md]
+
+## Настройка переменных окружения
+
+Перед запуском приложения создайте файл `.env` в корне проекта и укажите необходимые переменные:
+
+```env
+MARHI_MONGODB_URI=ваш_новый_mongodb_uri
+CLIENT_ID=ваш_новый_client_id
+CLIENT_SECRET=ваш_новый_client_secret
+REDIRECT_URIS=ваш_redirect_uri
+GMAIL_ACCESS_TOKEN=ваш_новый_gmail_access_token
+GMAIL_REFRESH_TOKEN=ваш_новый_gmail_refresh_token
+
+
+
 
 # Getting Started with Create React App
 
@@ -637,8 +627,10 @@ export default App;
 
 [src\components\PersonInfo.js]
 
+// src/components/PersonInfo.js
 import React, { useState, useEffect } from 'react';
 import { handleApiRequest } from '../utils/api-helpers';
+import logger from '../utils/logger';
 
 function PersonInfo({ userType }) {
   const [person, setPerson] = useState(null);
@@ -646,8 +638,17 @@ function PersonInfo({ userType }) {
   useEffect(() => {
     const fetchPerson = async () => {
       const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-      const data = await handleApiRequest(`/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
-      if (data?.type === userType) setPerson(data);
+      if (!tgId) {
+        logger.error('Telegram user ID не найден');
+        return;
+      }
+      const data = await handleApiRequest(`/api/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
+      if (data?.type === userType) {
+        setPerson(data);
+        logger.info('Данные пользователя получены: %o', data);
+      } else {
+        logger.warn('Пользователь с tgId %s не найден или тип не соответствует', tgId);
+      }
     };
     fetchPerson();
   }, [userType]);
@@ -674,8 +675,10 @@ export default PersonInfo;
 
 [src\components\RegistrationForm.js]
 
+// src/components/RegistrationForm.js
 import React, { useState, useEffect } from 'react';
 import { handleApiRequest } from '../utils/api-helpers';
+import logger from '../utils/logger';
 
 function RegistrationForm() {
   const [email, setEmail] = useState('');
@@ -686,9 +689,11 @@ function RegistrationForm() {
   useEffect(() => {
     const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user;
     if (!tgUser) {
+      logger.error('Не удалось инициализировать Telegram WebApp.');
       alert('Не удалось инициализировать Telegram WebApp.');
       return;
     }
+    logger.info('Telegram WebApp успешно инициализирован. Пользователь: ', tgUser);
   }, []);
 
   const handleSubmit = async (e) => {
@@ -697,8 +702,10 @@ function RegistrationForm() {
     if (data) {
       localStorage.setItem('dbUserId', data._id);
       setError('');
+      logger.info('Код отправлен на email: %s', email);
     } else {
       setError('Пользователь не найден');
+      logger.warn('Пользователь с email %s не найден', email);
     }
   };
 
@@ -713,8 +720,10 @@ function RegistrationForm() {
     if (data) {
       setIsRegistered(true);
       setError('');
+      logger.info('Пользователь успешно зарегистрирован с tgId: %s', tgUser?.id);
     } else {
       setError('Неверный код');
+      logger.warn('Введён неверный код для пользователя с ID: %s', dbUserId);
     }
   };
 
@@ -806,6 +815,9 @@ input {
 
 [src\utils\api-helpers.js]
 
+// src/utils/api-helpers.js
+import logger from './logger';
+
 export async function handleApiRequest(url, body, method = 'POST') {
   try {
     const options = {
@@ -813,23 +825,78 @@ export async function handleApiRequest(url, body, method = 'POST') {
       headers: { 'Content-Type': 'application/json' }
     };
 
-    if (method !== 'GET') {
+    if (method !== 'GET' && body) {
       options.body = JSON.stringify(body);
     }
 
     const response = await fetch(url, options);
 
-    // Проверка на 404 ошибку
     if (response.status === 404) {
       throw new Error('Маршрут не найден (404)');
     }
 
-    if (!response.ok) throw new Error('Ошибка запроса');
-    return await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Ошибка запроса: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    logger.info('Успешный ответ от %s: %o', url, data);
+    return data;
   } catch (error) {
-    console.error('Ошибка при выполнении запроса', error);
+    logger.error('Ошибка при выполнении запроса к %s: %o', url, error);
     return null;
   }
 }
+
+
+[src\utils\logger.js]
+
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+const logger = {
+  log: (...args) => {
+    if (isDevelopment) {
+      console.log(...args);
+    }
+  },
+  info: (...args) => {
+    if (isDevelopment) {
+      console.info(...args);
+    }
+  },
+  warn: (...args) => {
+    if (isDevelopment) {
+      console.warn(...args);
+    }
+  },
+  error: (...args) => {
+    if (isDevelopment) {
+      console.error(...args);
+    }
+  },
+};
+
+export default logger;
+
+
+[utils\logger.js]
+
+// utils/logger.js
+
+const { createLogger, format, transports } = require('winston');
+
+const logger = createLogger({
+  level: process.env.NODE_ENV === 'production' ? 'info' : 'debug', // Уровень логирования
+  format: format.combine(
+    format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }), // Форматирование метки времени
+    format.printf(info => `${info.timestamp} [${info.level.toUpperCase()}]: ${info.message}`) // Форматирование сообщения
+  ),
+  transports: [
+    new transports.Console() // Вывод логов в консоль
+  ],
+});
+
+module.exports = logger;
 
 
