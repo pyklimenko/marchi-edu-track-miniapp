@@ -15,13 +15,13 @@ module.exports = async (req, res) => {
                 console.log(`[find-by-tgId] Найден студент с tgId: ${tgId}`);
                 res.status(200).json({ 
                     type: 'student',
-                    ...person 
+                    ...person.toObject() // Так как используется MongoDB Document
                 });
             } else if (person instanceof Teacher) {
                 console.log(`[find-by-tgId] Найден преподаватель с tgId: ${tgId}`);
                 res.status(200).json({ 
                     type: 'teacher',
-                    ...person 
+                    ...person.toObject() // Так как используется MongoDB Document
                 });
             }
         } else {
