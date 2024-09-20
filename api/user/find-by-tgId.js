@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
 
     tgId = parseInt(tgId, 10);
 
-    console.log(`[find-by-tgId] Получен запрос на поиск пользователя с tgId: ${tgId}`);
+    // console.log(`[find-by-tgId] Получен запрос на поиск пользователя с tgId: ${tgId}`);
 
     try {
         const person = await findPersonByTgId(tgId);
@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
                 console.log(`[find-by-tgId] Найден студент с tgId: ${tgId}`);
                 res.status(200).json({ 
                     type: 'student',
-                    ...person 
+                    ...person
                 });
             } else if (person instanceof Teacher) {
                 console.log(`[find-by-tgId] Найден преподаватель с tgId: ${tgId}`);
