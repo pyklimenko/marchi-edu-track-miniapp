@@ -1,6 +1,9 @@
 import { createTheme } from '@mui/material/styles';
 
 export const getTheme = (themeParams) => {
+  
+  console.log(themeParams?.bg_color);
+
   return createTheme({
     palette: {
       mode: themeParams?.bg_color ? 'dark' : 'light',
