@@ -1,3 +1,4 @@
+// src/components/student/teacherDashboard.js
 import React from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import TeacherProfile from './teacherProfile';
