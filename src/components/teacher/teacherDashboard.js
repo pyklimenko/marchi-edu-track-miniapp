@@ -40,7 +40,6 @@ function TeacherDashboard() {
           value={value}
           onChange={handleChange}
           aria-label="icon tabs"
-          centered
           variant="fullWidth"
         >
           <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Profile" />
