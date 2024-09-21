@@ -41,8 +41,7 @@ function TeacherDashboard() {
           onChange={handleChange}
           aria-label="icon tabs"
           centered
-          variant="scrollable"
-          scrollButtons="auto"
+          variant="fullWidth"
         >
           <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Profile" />
           <Tab icon={<InsertChartOutlinedIcon />} aria-label="statistics" label="Statistics" />
