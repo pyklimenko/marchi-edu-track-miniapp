@@ -3,7 +3,7 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import TeacherProfile from './teacherProfile';
 import TeacherStatistics from './teacherStatistics';
 import TeacherStudentsList from './teacherStudentsList';
-import { Container, Tabs, Tab, Box } from '@mui/material';
+import { Container, Tabs, Tab, Box, useTheme } from '@mui/material';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
@@ -11,6 +11,9 @@ import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
 function TeacherDashboard() {
   const [value, setValue] = useState(0);
   const navigate = useNavigate();
+  
+  // Используем тему, чтобы получить цвет фона
+  const theme = useTheme();
 
   const handleChange = (event, newValue) => {
     setValue(newValue);
@@ -28,9 +31,9 @@ function TeacherDashboard() {
         sx={{
           position: 'fixed',
           top: 0,
-          width: '100%', // Растягиваем на всю ширину экрана
-          zIndex: 1000, // Устанавливаем высокий z-index, чтобы Tabs оставались поверх всего
-          backgroundColor: 'white', // Цвет фона вкладок
+          width: '100%',
+          zIndex: 1000,
+          backgroundColor: theme.palette.background.default, // Используем цвет фона из темы
         }}
       >
         <Tabs
@@ -38,8 +41,8 @@ function TeacherDashboard() {
           onChange={handleChange}
           aria-label="icon tabs"
           centered
-          variant="scrollable" // Вкладки станут прокручиваемыми, если не помещаются
-          scrollButtons="auto" // Автоматическое отображение кнопок прокрутки
+          variant="scrollable"
+          scrollButtons="auto"
         >
           <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Profile" />
           <Tab icon={<InsertChartOutlinedIcon />} aria-label="statistics" label="Statistics" />
@@ -47,7 +50,7 @@ function TeacherDashboard() {
         </Tabs>
       </Box>
 
-      {/* Контейнер для контента, с отступом от верха, чтобы не скрывать вкладки */}
+      {/* Контейнер для контента с отступом от верха */}
       <Container maxWidth="md" sx={{ marginTop: '64px' }}>
         <Routes>
           <Route path="profile" element={<TeacherProfile />} />
