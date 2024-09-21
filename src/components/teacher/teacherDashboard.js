@@ -1,27 +1,35 @@
-// src/components/teacher/teacherDashboard.js
 import React from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 import TeacherProfile from './teacherProfile';
 import TeacherStatistics from './teacherStatistics';
 import TeacherStudentsList from './teacherStudentsList';
+import { Typography, Button, Container, Box } from '@mui/material';
 
 function TeacherDashboard() {
   return (
-    <div>
-      <h1>Преподавательский Дашборд</h1>
+    <Container maxWidth="md">
+      <Typography variant="h4" align="center" gutterBottom>
+        Преподавательский Дашборд
+      </Typography>
       <nav>
-        <ul>
-          <li>
-            <Link to="profile">Профиль</Link>
-          </li>
-          <li>
-            <Link to="statistics">Статистика</Link>
-          </li>
-          <li>
-            <Link to="students">Список Студентов</Link>
-          </li>
-          {/* Добавьте другие ссылки по необходимости */}
-        </ul>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: '3px', // Отступ между кнопками
+            padding: '0 5px', // Отступ слева и справа от границ окна
+          }}
+        >
+          <Button component={Link} to="profile" variant="contained" sx={{ flex: 1 }}>
+            Info
+          </Button>
+          <Button component={Link} to="statistics" variant="contained" sx={{ flex: 1 }}>
+            Stat
+          </Button>
+          <Button component={Link} to="students" variant="contained" sx={{ flex: 1 }}>
+            List
+          </Button>
+        </Box>
       </nav>
       <Routes>
         <Route path="profile" element={<TeacherProfile />} />
@@ -29,7 +37,7 @@ function TeacherDashboard() {
         <Route path="students" element={<TeacherStudentsList />} />
         {/* Добавьте другие маршруты по необходимости */}
       </Routes>
-    </div>
+    </Container>
   );
 }
 

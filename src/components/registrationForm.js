@@ -86,7 +86,7 @@ function RegistrationForm() {
         onChange={(e) => setEmail(e.target.value)}
         required
       />
-      <Button type="submit" variant="contained" color="primary" fullWidth>
+      <Button type="submit" variant="outlined" color="primary" fullWidth>
         Отправить
       </Button>
     </form>
@@ -101,7 +101,7 @@ function RegistrationForm() {
         onChange={(e) => setCode(e.target.value)}
         required
       />
-      <Button onClick={handleVerify} variant="contained" color="primary" fullWidth>
+      <Button onClick={handleVerify} variant="outlined" color="primary" fullWidth>
         Проверить
       </Button>
     </div>
