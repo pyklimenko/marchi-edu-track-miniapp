@@ -73,45 +73,45 @@ function RegistrationForm() {
     </Container>
   ) : (
     <Container maxWidth="sm">
-    <Typography variant="h5" align="center" gutterBottom>
-      Регистрация
-    </Typography>
-    <form onSubmit={handleSubmit}>
-      <TextField
-        label="Email"
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <Button type="submit" variant="outlined" color="primary" fullWidth>
-        Отправить
-      </Button>
-    </form>
-
-    <div style={{ marginTop: '20px' }}>
-      <TextField
-        label="Введите код"
-        variant="outlined"
-        fullWidth
-        margin="normal"
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        required
-      />
-      <Button onClick={handleVerify} variant="outlined" color="primary" fullWidth>
-        Проверить
-      </Button>
-    </div>
-
-    {error && (
-      <Typography variant="body2" color="error" align="center">
-        {error}
+      <Typography variant="h5" align="center" gutterBottom>
+        Регистрация
       </Typography>
-    )}
-  </Container>
+      <form onSubmit={handleSubmit}>
+        <TextField
+          label="Email"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Button type="submit" variant="outlined" fullWidth>
+          Отправить
+        </Button>
+      </form>
+
+      <div style={{ marginTop: '20px' }}>
+        <TextField
+          label="Введите код"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          required
+        />
+        <Button onClick={handleVerify} variant="outlined" fullWidth>
+          Проверить
+        </Button>
+      </div>
+
+      {error && (
+        <Typography variant="body2" color="error" align="center">
+          {error}
+        </Typography>
+      )}
+    </Container>
   );
 }
 
