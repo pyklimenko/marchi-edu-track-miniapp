@@ -62,6 +62,26 @@ export const getTheme = (themeParams) => {
           },
         },
       },
+      MuiTabs: {
+        styleOverrides: {
+          root: {
+            color: isLightTheme ? '#000000' : '#ffffff',
+          },
+          indicator: {
+            backgroundColor: themeParams?.button_color || '#0088cc',
+          },
+        },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            color: isLightTheme ? '#000000' : '#ffffff',
+            '&.Mui-selected': {
+              color: themeParams?.button_color || '#0088cc',
+            },
+          },
+        },
+      },
     },
   });
 };

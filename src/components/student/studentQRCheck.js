@@ -1,53 +1,116 @@
 // src/components/student/studentQRCheck.js
-import React, { useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import QrReader from 'react-qr-scanner';
+import jsQR from 'jsqr';
 import { handleApiRequest } from '../../utils/api-helpers';
-import { Container, Typography, Alert } from '@mui/material';
+import { Container, Typography, Alert, Box, Button } from '@mui/material';
 
 function StudentQRCheck() {
+  const videoRef = useRef(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const canvasRef = useRef(null);
   const navigate = useNavigate();
 
-  // Получение tgUserId из Telegram WebApp
-  const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  const startCamera = () => {
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: 'environment' } })
+      .then((stream) => {
+        videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute('playsinline', true); // Для iOS
+        videoRef.current.play();
+        setStreaming(true);
+        requestAnimationFrame(tick);
+      })
+      .catch((err) => {
+        console.error('Ошибка при доступе к камере:', err);
+        setError('Ошибка при доступе к камере: ' + err.message);
+      });
+  };
 
-  const handleScan = async (data) => {
-    if (data) {
-      const qrCode = data.text;
-      if (qrCode && qrCode.startsWith('marhi-qr-')) {
-        try {
-          const response = await handleApiRequest(
-            '/api/student/check-in',
-            { qrCode },
-            'POST',
-            { 'x-telegram-user-id': tgUserId }
-          );
-          if (response && response.success) {
-            setSuccess(response.message || 'Вы успешно отметились на паре!');
-          } else {
-            setError(response.error || 'Не удалось отметить посещение. Попробуйте снова.');
-          }
-        } catch (err) {
-          console.error(err);
-          setError('Ошибка при отметке посещения.');
-        }
+  const stopCamera = () => {
+    const stream = videoRef.current.srcObject;
+    if (stream) {
+      const tracks = stream.getTracks();
+      tracks.forEach((track) => {
+        track.stop();
+      });
+    }
+    videoRef.current.srcObject = null;
+    setStreaming(false);
+  };
+
+  const tick = () => {
+    if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      const canvas = canvasRef.current.getContext('2d');
+      canvasRef.current.width = videoRef.current.videoWidth;
+      canvasRef.current.height = videoRef.current.videoHeight;
+      canvas.drawImage(
+        videoRef.current,
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+
+      const imageData = canvas.getImageData(
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+      const code = jsQR(
+        imageData.data,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+
+      if (code) {
+        // QR-код распознан
+        handleScanResult(code.data);
+        stopCamera();
       } else {
-        setError('Неверный QR-код. Попробуйте снова.');
+        requestAnimationFrame(tick);
       }
+    } else {
+      requestAnimationFrame(tick);
     }
   };
 
-  const handleError = (err) => {
-    console.error(err);
-    setError('Ошибка при сканировании QR-кода.');
+  const handleScanResult = async (qrCode) => {
+    if (qrCode && qrCode.startsWith('marhi-qr-')) {
+      try {
+        // Получение tgUserId из Telegram WebApp
+        const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+
+        const data = await handleApiRequest(
+          '/api/student/check-in',
+          { qrCode },
+          'POST',
+          { 'x-telegram-user-id': tgUserId }
+        );
+
+        if (data && data.success) {
+          setSuccess(data.message || 'Вы успешно отметились на паре!');
+        } else {
+          setError(data.error || 'Ошибка при отметке посещения.');
+        }
+      } catch (err) {
+        console.error('Ошибка при отметке посещения:', err);
+        setError('Ошибка при отметке посещения.');
+      }
+    } else {
+      setError('Неверный QR-код. Попробуйте снова.');
+    }
   };
 
-  const previewStyle = {
-    height: 240,
-    width: '100%',
-  };
+  useEffect(() => {
+    // Очищаем камеру при размонтировании компонента
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   return (
     <Container maxWidth="sm">
@@ -63,13 +126,37 @@ function StudentQRCheck() {
           <Typography variant="body1" align="center" gutterBottom>
             Наведите камеру на QR-код, чтобы отметиться на паре.
           </Typography>
-          <QrReader
-            delay={300}
-            style={previewStyle}
-            onError={handleError}
-            onScan={handleScan}
-            constraints={{ facingMode: 'environment' }}
-          />
+          {!streaming && (
+            <Button variant="contained" color="primary" onClick={startCamera}>
+              Открыть камеру
+            </Button>
+          )}
+          <Box display="flex" justifyContent="center" mt={2}>
+              <Paper
+                elevation={3}
+                style={{
+                  width: '70%',
+                  height: '70%',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                }}
+              >            
+              <video
+              ref={videoRef}
+              style={{
+                width: '70%',
+                height: '70%',
+                borderRadius: '16px',
+                display: streaming ? 'block' : 'none',
+                objectFit: 'cover',
+              }}
+            />
+            <canvas
+              ref={canvasRef}
+              style={{ display: 'none' }}
+            />
+            </Paper>
+          </Box>
         </>
       )}
     </Container>
