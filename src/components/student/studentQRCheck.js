@@ -14,35 +14,11 @@ function StudentQRCheck() {
   const navigate = useNavigate();
 
   const startCamera = () => {
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: 'environment' } })
-      .then((stream) => {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute('playsinline', true); // Для iOS
-        videoRef.current.play();
-        setStreaming(true);
-        requestAnimationFrame(tick);
-      })
-      .catch((err) => {
-        console.error('Ошибка при доступе к камере:', err);
-        setError('Ошибка при доступе к камере: ' + err.message);
-      });
-  };
-
-  const stopCamera = () => {
-    const stream = videoRef.current.srcObject;
-    if (stream) {
-      const tracks = stream.getTracks();
-      tracks.forEach((track) => {
-        track.stop();
-      });
-    }
-    videoRef.current.srcObject = null;
-    setStreaming(false);
+    setStreaming(true);
   };
 
   const tick = () => {
-    if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
       const canvas = canvasRef.current.getContext('2d');
       canvasRef.current.width = videoRef.current.videoWidth;
       canvasRef.current.height = videoRef.current.videoHeight;
@@ -69,7 +45,7 @@ function StudentQRCheck() {
       if (code) {
         // QR-код распознан
         handleScanResult(code.data);
-        stopCamera();
+        setStreaming(false);
       } else {
         requestAnimationFrame(tick);
       }
@@ -106,11 +82,39 @@ function StudentQRCheck() {
   };
 
   useEffect(() => {
-    // Очищаем камеру при размонтировании компонента
+    let stream;
+    if (streaming) {
+      navigator.mediaDevices
+        .getUserMedia({ video: { facingMode: 'environment' } })
+        .then((s) => {
+          stream = s;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.setAttribute('playsinline', true); // Для iOS
+            videoRef.current.play();
+            requestAnimationFrame(tick);
+          } else {
+            console.error('videoRef.current is null');
+            setError('Ошибка: видеоэлемент недоступен.');
+            setStreaming(false);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка при доступе к камере:', err);
+          setError('Ошибка при доступе к камере: ' + err.message);
+          setStreaming(false);
+        });
+    }
+
     return () => {
-      stopCamera();
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
     };
-  }, []);
+  }, [streaming]);
 
   return (
     <Container maxWidth="sm">
@@ -132,29 +136,29 @@ function StudentQRCheck() {
             </Button>
           )}
           <Box display="flex" justifyContent="center" mt={2}>
-              <Paper
-                elevation={3}
-                style={{
-                  width: '70%',
-                  height: '70%',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                }}
-              >            
-              <video
-              ref={videoRef}
+            <Paper
+              elevation={3}
               style={{
                 width: '70%',
                 height: '70%',
                 borderRadius: '16px',
-                display: streaming ? 'block' : 'none',
-                objectFit: 'cover',
+                overflow: 'hidden',
               }}
-            />
-            <canvas
-              ref={canvasRef}
-              style={{ display: 'none' }}
-            />
+            >
+              <video
+                ref={videoRef}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '16px',
+                  display: streaming ? 'block' : 'none',
+                  objectFit: 'cover',
+                }}
+              />
+              <canvas
+                ref={canvasRef}
+                style={{ display: 'none' }}
+              />
             </Paper>
           </Box>
         </>

@@ -1,6 +1,6 @@
 // src/components/student/studentDashboard.js
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import StudentProfile from './studentProfile';
 import StudentQRCheck from './studentQRCheck';
 import StudentStatistics from './studentStatistics';
@@ -10,20 +10,35 @@ import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
 
 function StudentDashboard() {
-  const [value, setValue] = useState(0);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const tabNameToIndex = {
+    '/student/profile': 0,
+    '/student/qr': 1,
+    '/student/statistics': 2,
+  };
+
+  const indexToTabName = {
+    0: 'profile',
+    1: 'qr',
+    2: 'statistics',
+  };
+
+  const [value, setValue] = useState(tabNameToIndex[location.pathname] || 0);
 
   useEffect(() => {
-    navigate('profile');
-  }, [navigate]);
+    setValue(tabNameToIndex[location.pathname] || 0);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (location.pathname === '/student') {
+      navigate('profile');
+    }
+  }, [location.pathname, navigate]);
 
   const handleChange = (event, newValue) => {
-    setValue(newValue);
-
-    // Перенаправляем на нужный маршрут при изменении вкладки
-    if (newValue === 0) navigate('profile');
-    if (newValue === 1) navigate('qr');
-    if (newValue === 2) navigate('statistics');
+    navigate(indexToTabName[newValue]);
   };
 
   return (
