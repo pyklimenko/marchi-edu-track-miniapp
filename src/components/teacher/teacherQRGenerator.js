@@ -1,6 +1,6 @@
 // src/components/teacher/teacherQRGenerator.js
 import React, { useState, useEffect } from 'react';
-import QRCode from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { Container, Typography } from '@mui/material';
 import { handleApiRequest } from '../../utils/api-helpers';
 
@@ -63,7 +63,7 @@ function TeacherQRGenerator() {
       </Typography>
       {qrCodeValue ? (
         <div style={{ textAlign: 'center' }}>
-          <QRCode value={qrCodeValue} size={256} />
+          <QRCodeCanvas value={qrCodeValue} size={256} />
           <Typography variant="body1" align="center">
             Обновление через: {timer} секунд
           </Typography>
