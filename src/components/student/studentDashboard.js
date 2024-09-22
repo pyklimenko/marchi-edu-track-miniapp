@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import StudentProfile from './studentProfile';
-import StudentCamera from './studentCamera';
+import StudentQRCheck from './studentQRCheck';
 import StudentStatistics from './studentStatistics';
 import { Container, Tabs, Tab } from '@mui/material';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
@@ -18,7 +18,7 @@ function StudentDashboard() {
 
     // Перенаправляем на нужный маршрут при изменении вкладки
     if (newValue === 0) navigate('profile');
-    if (newValue === 1) navigate('camera');
+    if (newValue === 1) navigate('qr');
     if (newValue === 2) navigate('statistics');
   };
 
@@ -39,7 +39,7 @@ function StudentDashboard() {
       {/* Маршруты */}
       <Routes>
         <Route path="profile" element={<StudentProfile />} />
-        <Route path="camera" element={<StudentCamera />} />
+        <Route path="qr" element={<StudentQRCheck />} />
         <Route path="statistics" element={<StudentStatistics />} />
       </Routes>
     </Container>

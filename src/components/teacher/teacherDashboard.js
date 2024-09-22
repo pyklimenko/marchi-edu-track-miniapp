@@ -1,6 +1,8 @@
+// teacherDashboard.js
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import TeacherProfile from './teacherProfile';
+import TeacherQRGenerator from './teacherQRGenerator';
 import TeacherStatistics from './teacherStatistics';
 import TeacherStudentsList from './teacherStudentsList';
 import { Container, Tabs, Tab } from '@mui/material';
@@ -17,8 +19,9 @@ function TeacherDashboard() {
 
     // Перенаправляем на нужный маршрут при изменении вкладки
     if (newValue === 0) navigate('profile');
-    if (newValue === 1) navigate('students');
-    if (newValue === 2) navigate('statistics');
+    if (newValue === 1) navigate('qr');
+    if (newValue === 2) navigate('students');
+    if (newValue === 3) navigate('statistics');
   };
 
   return (
@@ -31,6 +34,7 @@ function TeacherDashboard() {
         centered
       >
         <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Profile" />
+        <Tab icon={<CameraAltOutlinedIcon />} aria-label="qr" label="QR" />
         <Tab icon={<GroupsOutlinedIcon />} aria-label="students" label="Students" />
         <Tab icon={<InsertChartOutlinedIcon />} aria-label="statistics" label="Statistics" />
       </Tabs>
@@ -38,6 +42,7 @@ function TeacherDashboard() {
       {/* Маршруты */}
       <Routes>
         <Route path="profile" element={<TeacherProfile />} />
+        <Route path="qr" element={<TeacherQRGenerator />} />
         <Route path="students" element={<TeacherStudentsList />} />
         <Route path="statistics" element={<TeacherStatistics />} />
       </Routes>
