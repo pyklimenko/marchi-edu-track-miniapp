@@ -1,4 +1,4 @@
-// src/components/student/StudentProfile.js
+// src/components/student/studentProfile.js
 import React, { useContext, useEffect, useState } from 'react';
 import { UserContext } from '../../context/userContext';
 import { Container, Typography } from '@mui/material';

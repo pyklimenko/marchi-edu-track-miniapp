@@ -1,5 +1,5 @@
 // src/components/student/studentDashboard.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import StudentProfile from './studentProfile';
 import StudentQRCheck from './studentQRCheck';
