@@ -1,20 +1,35 @@
 // src/components/student/StudentProfile.js
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { UserContext } from '../../context/userContext';
+import { Container, Typography } from '@mui/material';
 
 function StudentProfile() {
   const { user } = useContext(UserContext);
+  const [loading, setLoading] = useState(true);
 
-  if (!user) return null;
+  useEffect(() => {
+    if (user) {
+      setLoading(false);
+    }
+  }, [user]);
+
+  if (loading) {
+    return (
+      <Container>
+        <Typography variant="h5">Загрузка профиля...</Typography>
+      </Container>
+    );
+  }
 
   return (
-    <div>
-      <h2>Профиль Студента</h2>
-      <div>Имя: {user.firstName}</div>
-      <div>Фамилия: {user.lastName}</div>
-      <div>Номер зачётки: {user.gradeBookId}</div>
-      {/* Добавьте дополнительную информацию по необходимости */}
-    </div>
+    <Container>
+      <Typography variant="h5" gutterBottom>
+        Профиль Студента
+      </Typography>
+      <Typography variant="body1">Имя: {user.firstName}</Typography>
+      <Typography variant="body1">Фамилия: {user.lastName}</Typography>
+      <Typography variant="body1">Номер зачётки: {user.gradeBookId}</Typography>
+    </Container>
   );
 }
 

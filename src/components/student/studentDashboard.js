@@ -13,6 +13,10 @@ function StudentDashboard() {
   const [value, setValue] = useState(0);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    navigate('profile');
+  }, [navigate]);
+
   const handleChange = (event, newValue) => {
     setValue(newValue);
 

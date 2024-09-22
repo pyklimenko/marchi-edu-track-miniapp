@@ -3,7 +3,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsQR from 'jsqr';
 import { handleApiRequest } from '../../utils/api-helpers';
-import { Container, Typography, Alert, Box, Button } from '@mui/material';
+import { Container, Typography, Alert, Box, Button, Paper } from '@mui/material';
 
 function StudentQRCheck() {
   const videoRef = useRef(null);

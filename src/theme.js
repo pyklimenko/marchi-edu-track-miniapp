@@ -1,3 +1,4 @@
+// theme.js
 import { createTheme } from '@mui/material/styles';
 
 // Функция для преобразования HEX-цвета в яркость
@@ -32,7 +33,19 @@ export const getTheme = (themeParams) => {
         contrastText: themeParams?.button_text_color || '#ffffff',
       },
     },
+    typography: {
+      allVariants: {
+        color: isLightTheme ? '#000000' : '#ffffff',
+      },
+    },
     components: {
+      MuiTypography: {
+        styleOverrides: {
+          root: {
+            color: isLightTheme ? '#000000' : '#ffffff',
+          },
+        },
+      },
       MuiTextField: {
         styleOverrides: {
           root: {
