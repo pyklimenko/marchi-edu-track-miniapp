@@ -25,14 +25,9 @@ function StudentDashboard() {
   return (
     <Container maxWidth="md">
       {/* Вкладки с иконками */}
-      <Tabs
-        value={value}
-        onChange={handleChange}
-        aria-label="icon tabs"
-        centered
-      >
+      <Tabs value={value} onChange={handleChange} aria-label="icon tabs" centered>
         <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Profile" />
-        <Tab icon={<CameraAltOutlinedIcon />} aria-label="camera" label="QR" />
+        <Tab icon={<CameraAltOutlinedIcon />} aria-label="qr" label="QR" />
         <Tab icon={<InsertChartOutlinedIcon />} aria-label="statistics" label="Statistics" />
       </Tabs>
 

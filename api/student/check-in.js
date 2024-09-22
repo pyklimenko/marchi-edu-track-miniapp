@@ -18,8 +18,8 @@ module.exports = async (req, res) => {
       return;
     }
 
-    // Получение данных студента по tgId
-    const tgUserId = req.headers['x-telegram-user-id']; // Предполагается, что tgUserId передаётся в заголовках
+    // Получение tgUserId из заголовков
+    const tgUserId = req.headers['x-telegram-user-id'];
     if (!tgUserId) {
       res.status(400).json({ error: 'Не удалось идентифицировать пользователя' });
       return;
@@ -33,11 +33,12 @@ module.exports = async (req, res) => {
     }
 
     // Получение текущей пары (Class) по дате
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
+    const now = new Date();
     const currentClass = await db.collection('Classes').findOne({
-      dateTime: { $gte: today, $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000) },
+      dateTime: {
+        $gte: new Date(now.setHours(0, 0, 0, 0)),
+        $lt: new Date(now.setHours(23, 59, 59, 999)),
+      },
     });
 
     if (!currentClass) {
@@ -59,7 +60,8 @@ module.exports = async (req, res) => {
         attendanceRecords: [],
         grades: [],
       };
-      await db.collection('Grades').insertOne(attendanceGrades);
+      const result = await db.collection('Grades').insertOne(attendanceGrades);
+      attendanceGrades._id = result.insertedId;
     }
 
     // Проверяем, не было ли уже отметки для текущего занятия
@@ -76,7 +78,7 @@ module.exports = async (req, res) => {
 
     client.close();
 
-    res.status(200).json({ success: true });
+    res.status(200).json({ success: true, message: 'Вы успешно отметились на паре!' });
   } catch (error) {
     logger.error('Ошибка при отметке посещения: %o', error);
     res.status(500).json({ error: 'Ошибка сервера' });

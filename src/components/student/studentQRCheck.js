@@ -1,7 +1,7 @@
-// src/components/student/StudentQRCheck.js
+// src/components/student/studentQRCheck.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { QrReader } from 'react-qr-reader';
+import QrReader from 'react-qr-scanner';
 import { handleApiRequest } from '../../utils/api-helpers';
 import { Container, Typography, Alert } from '@mui/material';
 
@@ -13,33 +13,40 @@ function StudentQRCheck() {
   // Получение tgUserId из Telegram WebApp
   const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 
-  const handleScan = async (result, error) => {
-    if (result) {
-      const qrCode = result?.text;
+  const handleScan = async (data) => {
+    if (data) {
+      const qrCode = data.text;
       if (qrCode && qrCode.startsWith('marhi-qr-')) {
         try {
-          const data = await handleApiRequest(
+          const response = await handleApiRequest(
             '/api/student/check-in',
             { qrCode },
             'POST',
             { 'x-telegram-user-id': tgUserId }
           );
-          if (data && data.success) {
-            setSuccess('Вы успешно отметились на паре!');
+          if (response && response.success) {
+            setSuccess(response.message || 'Вы успешно отметились на паре!');
           } else {
-            setError('Не удалось отметить посещение. Попробуйте снова.');
+            setError(response.error || 'Не удалось отметить посещение. Попробуйте снова.');
           }
         } catch (err) {
+          console.error(err);
           setError('Ошибка при отметке посещения.');
         }
       } else {
         setError('Неверный QR-код. Попробуйте снова.');
       }
     }
-    if (error) {
-      console.error(error);
-      setError('Ошибка при сканировании QR-кода.');
-    }
+  };
+
+  const handleError = (err) => {
+    console.error(err);
+    setError('Ошибка при сканировании QR-кода.');
+  };
+
+  const previewStyle = {
+    height: 240,
+    width: '100%',
   };
 
   return (
@@ -57,9 +64,11 @@ function StudentQRCheck() {
             Наведите камеру на QR-код, чтобы отметиться на паре.
           </Typography>
           <QrReader
-            onResult={handleScan}
+            delay={300}
+            style={previewStyle}
+            onError={handleError}
+            onScan={handleScan}
             constraints={{ facingMode: 'environment' }}
-            style={{ width: '100%' }}
           />
         </>
       )}
