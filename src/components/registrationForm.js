@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { handleApiRequest } from '../utils/api-helpers';
 import logger from '../utils/logger';
+import { TextField, Button, Typography, Container } from '@mui/material';
 
 function RegistrationForm() {
   const [email, setEmail] = useState('');
@@ -24,15 +25,11 @@ function RegistrationForm() {
   // Добавляем новый useEffect для перенаправления после успешной регистрации
   useEffect(() => {
     if (isRegistered) {
-      const timer = setTimeout(() => {
-        window.location.href = '/';
-      }, 3000);
-  
-      return () => clearTimeout(timer);
+      console.log('Navigating immediately without timeout');
+      navigate('/', { replace: true });
     }
-  }, [isRegistered]);
+  }, [isRegistered, navigate]);
   
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     const data = await handleApiRequest('/api/user/check-email', { email });
@@ -66,30 +63,55 @@ function RegistrationForm() {
   };
 
   return isRegistered ? (
-    <div>
-      <p>Вы успешно зарегистрировались!</p>
-      <p>Сейчас вы будете перенаправлены...</p>
-    </div>
+    <Container maxWidth="sm">
+      <Typography variant="h5" align="center" gutterBottom>
+        Вы успешно зарегистрировались!
+      </Typography>
+      <Typography variant="body1" align="center">
+        Сейчас вы будете перенаправлены...
+      </Typography>
+    </Container>
   ) : (
-    <div>
+    <Container maxWidth="sm">
+      <Typography variant="h5" align="center" gutterBottom>
+        Регистрация
+      </Typography>
       <form onSubmit={handleSubmit}>
-        <label>
-          Введите ваш email:
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <button type="submit">Отправить</button>
+        <TextField
+          label="Email"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Button type="submit" variant="outlined" fullWidth>
+          Отправить
+        </Button>
       </form>
 
       <div style={{ marginTop: '20px' }}>
-        <label>
-          Введите код:
-          <input type="text" value={code} onChange={(e) => setCode(e.target.value)} required />
-        </label>
-        <button onClick={handleVerify}>Проверить</button>
+        <TextField
+          label="Введите код"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          required
+        />
+        <Button onClick={handleVerify} variant="outlined" fullWidth>
+          Проверить
+        </Button>
       </div>
 
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-    </div>
+      {error && (
+        <Typography variant="body2" color="error" align="center">
+          {error}
+        </Typography>
+      )}
+    </Container>
   );
 }
 
