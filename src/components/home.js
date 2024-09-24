@@ -3,13 +3,14 @@ import React, { useContext } from 'react';
 import { UserContext } from '../context/userContext';
 import { Navigate } from 'react-router-dom';
 import RegistrationForm from './registrationForm';
+import Loading from './Loading'; // Импортируем компонент Loading
 
 function Home() {
   const { user } = useContext(UserContext);
 
   if (user === undefined) {
-    // Если пользователь ещё загружается
-    return <div>Загрузка...</div>;
+    // Если пользователь ещё загружается, показываем индикатор загрузки
+    return <Loading message="Подождите, идет загрузка..." />;
   }
 
   if (user === null) {
