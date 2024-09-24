@@ -1,11 +1,11 @@
 // src/App.js
 import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import Home from './components/home';
-import StudentDashboard from './components/student/studentDashboard';
-import TeacherDashboard from './components/teacher/teacherDashboard';
-import RegistrationForm from './components/registrationForm';
-import ProtectedRoute from './components/protectedRoute';
+import Home from './components/Home';
+import StudentDashboard from './components/student/StudentDashboard';
+import TeacherDashboard from './components/teacher/TeacherDashboard';
+import RegistrationForm from './components/RegistrationForm';
+import ProtectedRoute from './components/ProtectedRoute';
 import { ThemeProvider } from '@mui/material/styles';
 import { getTheme } from './theme';
 

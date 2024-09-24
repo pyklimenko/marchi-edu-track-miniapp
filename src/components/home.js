@@ -1,8 +1,8 @@
 // src/components/home.js
 import React, { useContext } from 'react';
-import { UserContext } from '../context/userContext';
+import { UserContext } from '../context/UserContext';
 import { Navigate } from 'react-router-dom';
-import RegistrationForm from './registrationForm';
+import RegistrationForm from './RegistrationForm';
 import Loading from './Loading'; // Импортируем компонент Loading
 
 function Home() {

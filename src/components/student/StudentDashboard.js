@@ -1,9 +1,9 @@
 // src/components/student/studentDashboard.js
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import StudentProfile from './studentProfile';
-import StudentQRCheck from './studentQRCheck';
-import StudentStatistics from './studentStatistics';
+import StudentProfile from './StudentProfile';
+import StudentQRCheck from './StudentQRCheck';
+import StudentStatistics from './StudentStatistics';
 import { Container, Tabs, Tab } from '@mui/material';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';

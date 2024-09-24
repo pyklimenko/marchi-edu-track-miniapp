@@ -1,6 +1,6 @@
 // src/components/student/studentProfile.js
 import React, { useContext, useEffect, useState } from 'react';
-import { UserContext } from '../../context/userContext';
+import { UserContext } from '../../context/UserContext';
 import { Container, Typography } from '@mui/material';
 
 function StudentProfile() {

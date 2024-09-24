@@ -2,7 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { UserProvider } from './context/userContext';
+import { UserProvider } from './context/UserContext';
 import { ThemeProvider } from '@mui/material/styles';
 import { getTheme } from './theme';
 import App from './App';

@@ -1,9 +1,9 @@
 // src/components/teacher/teacherDashboard.js
 import React, { useState } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
-import TeacherProfile from './teacherProfile';
-import TeacherQRGenerator from './teacherQRGenerator';
-import TeacherAttendance from './teacherAttendance';
+import TeacherProfile from './TeacherProfile';
+import TeacherQRGenerator from './TeacherQRGenerator';
+import TeacherAttendance from './TeacherAttendance';
 import { Container, Tabs, Tab } from '@mui/material';
 import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
