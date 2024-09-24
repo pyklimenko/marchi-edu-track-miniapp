@@ -17,7 +17,8 @@ const getBrightness = (hexColor) => {
 export const getTheme = (themeParams) => {
   const bgColor = themeParams?.bg_color || '#ffffff';
   const brightness = getBrightness(bgColor); // Вычисляем яркость
-  const isLightTheme = brightness > 128; // Определяем, светлая тема или тёмная
+  // const isLightTheme = brightness > 128; // Определяем, светлая тема или тёмная
+  const isLightTheme = true; // Временное решение
 
   return createTheme({
     palette: {
