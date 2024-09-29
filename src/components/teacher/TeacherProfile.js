@@ -35,7 +35,7 @@ function TeacherProfile() {
   ];
 
   return (
-    <Box sx={{ padding: 4, backgroundColor: 'background.default', minHeight: '100vh' }}>
+    <Box sx={{ padding: 2, backgroundColor: 'background.default', minHeight: '100vh' }}>
       <Typography variant="h4" gutterBottom>
         Профиль Преподавателя
       </Typography>
