@@ -18,13 +18,14 @@ export const getTheme = (themeParams) => {
   const bgColor = themeParams?.bg_color || '#ffffff';
   const brightness = getBrightness(bgColor); // Вычисляем яркость
   // const isLightTheme = brightness > 128; // Определяем, светлая тема или тёмная
-  const isLightTheme = false; // Временное решение
+  const isLightTheme = true; // Временное решение
 
   return createTheme({
     palette: {
       mode: isLightTheme ? 'light' : 'dark', // Светлая или тёмная тема
       background: {
-        default: bgColor,
+        default: isLightTheme ? '#ffffff' : '#000000',
+        // default: bgColor,
       },
       text: {
         primary: isLightTheme ? '#000000' : '#ffffff', // Текст зависит от яркости
