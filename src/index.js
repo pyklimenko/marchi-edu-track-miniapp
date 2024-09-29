@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { UserProvider } from './context/UserContext';
 import { ThemeProvider } from '@mui/material/styles';
 import { getTheme } from './theme';
+import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
 
 // Импорт шрифтов и базовых стилей MUI
@@ -22,7 +23,8 @@ root.render(
     <BrowserRouter>
       <UserProvider>
         <ThemeProvider theme={theme}>
-          <App />
+        <CssBaseline />
+        <App />
         </ThemeProvider>
       </UserProvider>
     </BrowserRouter>
