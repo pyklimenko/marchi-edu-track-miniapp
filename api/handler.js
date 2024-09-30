@@ -413,5 +413,5 @@ async function verifyCode(req, res) {
   }
 }
 
-// Экспортируем обработчик для Vercel
-module.exports.handler = serverless(app);
+// Экспортируем обработчик для Vercel как дефолтный экспорт
+module.exports = serverless(app);
