@@ -1,6 +1,7 @@
 // src/context/userContext.js
 import React, { createContext, useState, useEffect } from 'react';
 import { handleApiRequest } from '../utils/api-helpers';
+import { getTelegramUser } from '../telegram/telegram-web';
 
 export const UserContext = createContext();
 
@@ -9,7 +10,8 @@ export const UserProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      const user = getTelegramUser();
+      const tgId = user?.id;
       if (!tgId) {
         console.error('Telegram user ID не найден');
         setUser(null);
