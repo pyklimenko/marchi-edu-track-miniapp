@@ -1,7 +1,7 @@
 // api/google/google-auth.js
 require('dotenv').config();
 const { google } = require('googleapis');
-const logger = require('../../utils/logger');
+const logger = require('../logger');
 
 async function googleAuthorize() {
     const client_id = process.env.CLIENT_ID;
