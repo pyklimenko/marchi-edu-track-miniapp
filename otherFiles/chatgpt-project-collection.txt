@@ -219,29 +219,36 @@ async function googleAuthorize() {
     const client_id = process.env.CLIENT_ID;
     const client_secret = process.env.CLIENT_SECRET;
     const redirect_uris = [process.env.REDIRECT_URIS];
-
+  
     if (!client_id || !client_secret || !redirect_uris[0]) {
-        logger.error('Переменные окружения для Google API не определены');
-        throw new Error('Необходимо определить CLIENT_ID, CLIENT_SECRET и REDIRECT_URIS');
+      logger.error('Переменные окружения для Google API не определены');
+      throw new Error('Необходимо определить CLIENT_ID, CLIENT_SECRET и REDIRECT_URIS');
     }
-
+  
     const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
-
-    const accessToken = process.env.GMAIL_ACCESS_TOKEN;
+  
     const refreshToken = process.env.GMAIL_REFRESH_TOKEN;
-
-    if (accessToken && refreshToken) {
-        oAuth2Client.setCredentials({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-        });
+  
+    if (refreshToken) {
+      oAuth2Client.setCredentials({
+        refresh_token: refreshToken,
+      });
+  
+      try {
+        // Обновляем токен доступа
+        await oAuth2Client.getAccessToken();
         logger.info('Авторизация Google OAuth2 успешна');
         return oAuth2Client;
+      } catch (error) {
+        logger.error('Ошибка при обновлении токена доступа: %o', error);
+        throw new Error('Не удалось обновить токен доступа');
+      }
     } else {
-        logger.error('Токены доступа отсутствуют в переменных окружения');
-        throw new Error('Токены доступа отсутствуют');
+      logger.error('Токен обновления отсутствует в переменных окружения');
+      throw new Error('Токен обновления отсутствует');
     }
-}
+  }
+  
 
 module.exports = googleAuthorize;
 
@@ -270,46 +277,290 @@ async function sendGmailWithRetry(to, subject, message, retryCount = 3) {
 
 async function sendGmail(to, subject, message) {
     try {
-        const startTime = new Date();
-        logger.info('Отправка письма на: %s', to);
+      const startTime = new Date();
+      logger.info('Отправка письма на: %s', to);
+  
+      const auth = await googleAuthorize();
+      const gmail = google.gmail({ version: 'v1', auth });
+  
+      // Подготовка и отправка письма
+      const subjectBase64 = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
+      const email = [
+          `To: ${to}`,
+          `Subject: ${subjectBase64}`,
+          'MIME-Version: 1.0',
+          'Content-Type: text/plain; charset="UTF-8"',
+          'Content-Transfer-Encoding: 7bit',
+          '',
+          message,
+      ].join('\n');
 
-        const auth = await googleAuthorize();
-        const gmail = google.gmail({ version: 'v1', auth });
-
-        const subjectBase64 = `=?UTF-8?B?${Buffer.from(subject).toString('base64')}?=`;
-        const email = [
-            `To: ${to}`,
-            `Subject: ${subjectBase64}`,
-            'MIME-Version: 1.0',
-            'Content-Type: text/plain; charset="UTF-8"',
-            'Content-Transfer-Encoding: 7bit',
-            '',
-            message,
-        ].join('\n');
-
-        const encodedMessage = Buffer.from(email)
-            .toString('base64')
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=+$/, '');
-
-        const result = await gmail.users.messages.send({
+      const encodedMessage = Buffer.from(email)
+          .toString('base64')
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+  
+      const result = await gmail.users.messages.send({
+        userId: 'me',
+        requestBody: {
+          raw: encodedMessage,
+        },
+      });
+  
+      const duration = new Date() - startTime;
+      logger.info('Письмо успешно отправлено на %s за %d мс. ID сообщения: %s', to, duration, result.data.id);
+  
+    } catch (error) {
+      logger.error('Ошибка отправки письма на %s: %o', to, error);
+  
+      // Если ошибка связана с авторизацией, можно попробовать обновить токен
+      if (error.code === 401 || error.code === 403) {
+        logger.warn('Токен доступа истёк или недействителен. Попытка обновления токена.');
+        try {
+          await auth.getAccessToken();
+          // Повторяем отправку письма
+          const result = await gmail.users.messages.send({
             userId: 'me',
             requestBody: {
-                raw: encodedMessage,
+              raw: encodedMessage,
             },
-        });
-
-        const duration = new Date() - startTime;
-        logger.info('Письмо успешно отправлено на %s за %d мс. ID сообщения: %s', to, duration, result.data.id);
-
-    } catch (error) {
-        logger.error('Ошибка отправки письма на %s: %o', to, error);
-        throw error;
+          });
+          const duration = new Date() - startTime;
+          logger.info('Письмо успешно отправлено на %s за %d мс после обновления токена. ID сообщения: %s', to, duration, result.data.id);
+          return;
+        } catch (refreshError) {
+          logger.error('Не удалось обновить токен и отправить письмо: %o', refreshError);
+          throw refreshError;
+        }
+      }
+  
+      throw error;
     }
-}
-
+  }
+  
 module.exports = sendGmailWithRetry;
+
+
+[api\student\check-in.js]
+
+// api/student/check-in.js
+const { MongoClient, ObjectId } = require('mongodb');
+const logger = require('../../utils/logger');
+
+module.exports = async (req, res) => {
+  try {
+    const { qrCode } = req.body;
+
+    // Подключение к базе данных
+    const client = await MongoClient.connect(process.env.MONGODB_URI);
+    const db = client.db(process.env.DB_NAME);
+
+    // Получение текущего QR-кода
+    const currentQr = await db.collection('currentQrCode').findOne({ _id: 'current' });
+
+    if (!currentQr || currentQr.qrCode !== qrCode) {
+      res.status(400).json({ error: 'QR-код недействителен или устарел' });
+      return;
+    }
+
+    // Получение tgUserId из заголовков
+    const tgUserId = req.headers['x-telegram-user-id'];
+    if (!tgUserId) {
+      res.status(400).json({ error: 'Не удалось идентифицировать пользователя' });
+      return;
+    }
+
+    const student = await db.collection('Students').findOne({ tgId: tgUserId });
+
+    if (!student) {
+      res.status(404).json({ error: 'Студент не найден' });
+      return;
+    }
+
+    // Получение текущей пары (Class) по дате
+    const now = new Date();
+    const currentClass = await db.collection('Classes').findOne({
+      dateTime: {
+        $gte: new Date(now.setHours(0, 0, 0, 0)),
+        $lt: new Date(now.setHours(23, 59, 59, 999)),
+      },
+    });
+
+    if (!currentClass) {
+      res.status(404).json({ error: 'Текущая пара не найдена' });
+      return;
+    }
+
+    // Поиск или создание AttendanceGrades
+    let attendanceGrades = await db.collection('Grades').findOne({
+      studentId: student._id,
+    });
+
+    if (!attendanceGrades) {
+      // Создаём новый документ AttendanceGrades
+      attendanceGrades = {
+        studentId: student._id,
+        groupId: student.groupId,
+        semesterId: currentClass.semesterId, // Предполагается, что поле semesterId есть
+        attendanceRecords: [],
+        grades: [],
+      };
+      const result = await db.collection('Grades').insertOne(attendanceGrades);
+      attendanceGrades._id = result.insertedId;
+    }
+
+    // Проверяем, не было ли уже отметки для текущего занятия
+    if (attendanceGrades.attendanceRecords.includes(currentClass._id)) {
+      res.status(200).json({ success: true, message: 'Вы уже отметились на этой паре' });
+      return;
+    }
+
+    // Добавляем текущий Class ID в attendanceRecords
+    await db.collection('Grades').updateOne(
+      { _id: attendanceGrades._id },
+      { $push: { attendanceRecords: currentClass._id } }
+    );
+
+    client.close();
+
+    res.status(200).json({ success: true, message: 'Вы успешно отметились на паре!' });
+  } catch (error) {
+    logger.error('Ошибка при отметке посещения: %o', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+};
+
+
+[api\teacher\attendance.js]
+
+// api/teacher/attendance.js
+const { MongoClient } = require('mongodb');
+const logger = require('../../utils/logger');
+
+module.exports = async (req, res) => {
+  try {
+    // Подключение к базе данных
+    const client = await MongoClient.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    const db = client.db(process.env.DB_NAME);
+
+    // Получение списка студентов и их посещаемости
+    const students = await db
+      .collection('Students')
+      .aggregate([
+        {
+          $lookup: {
+            from: 'Grades',
+            localField: '_id',
+            foreignField: 'studentId',
+            as: 'grades',
+          },
+        },
+        {
+          $unwind: {
+            path: '$grades',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            firstName: 1,
+            lastName: 1,
+            groupId: 1,
+            attendanceCount: {
+              $size: { $ifNull: ['$grades.attendanceRecords', []] },
+            },
+          },
+        },
+      ])
+      .toArray();
+
+    client.close();
+
+    res.status(200).json({ students });
+  } catch (error) {
+    logger.error('Ошибка при получении посещаемости студентов: %o', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+};
+
+
+[api\teacher\generate-qr.js]
+
+// api/teacher/generate-qr.js
+const { MongoClient } = require('mongodb');
+const { v4: uuidv4 } = require('uuid');
+const logger = require('../../utils/logger');
+
+module.exports = async (req, res) => {
+  try {
+    // Подключение к базе данных
+    const client = await MongoClient.connect(process.env.MONGODB_URI);
+    const db = client.db(process.env.DB_NAME);
+
+    // Генерация нового QR-кода
+    const qrCode = 'marhi-qr-' + uuidv4().slice(0, 8); // Укорачиваем UUID
+
+    // Обновление или вставка записи в коллекцию
+    await db.collection('currentQrCode').updateOne(
+      { _id: 'current' },
+      { $set: { qrCode, timestamp: new Date() } },
+      { upsert: true }
+    );
+
+    client.close();
+
+    res.status(200).json({ qrCode });
+  } catch (error) {
+    logger.error('Ошибка при генерации QR-кода: %o', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+};
+
+
+[api\teacher\student-count.js]
+
+// api/teacher/student-count.js
+const { MongoClient } = require('mongodb');
+const logger = require('../../utils/logger');
+
+module.exports = async (req, res) => {
+  try {
+    // Подключение к базе данных
+    const client = await MongoClient.connect(process.env.MONGODB_URI);
+    const db = client.db(process.env.DB_NAME);
+
+    // Получение текущей пары
+    const now = new Date();
+    const currentClass = await db.collection('Classes').findOne({
+      dateTime: {
+        $gte: new Date(now.setHours(0, 0, 0, 0)),
+        $lt: new Date(now.setHours(23, 59, 59, 999)),
+      },
+    });
+
+    if (!currentClass) {
+      res.status(200).json({ count: 0 });
+      return;
+    }
+
+    // Подсчёт количества студентов, отметившихся на текущей паре
+    const count = await db.collection('Grades').countDocuments({
+      attendanceRecords: currentClass._id,
+    });
+
+    client.close();
+
+    res.status(200).json({ count });
+  } catch (error) {
+    logger.error('Ошибка при получении количества студентов: %o', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+};
 
 
 [api\telegram\telegram-web.js]
@@ -367,6 +618,7 @@ module.exports = async (req, res) => {
 
 [api\user\find-by-tgId.js]
 
+// api/user/find-by-tgId.js
 const { findPersonByTgId, Student, Teacher } = require('../db/db-queries');
 const logger = require('../../utils/logger');
 
@@ -383,12 +635,13 @@ module.exports = async (req, res) => {
             logger.info('Пользователь найден: %s %s', person.firstName, person.lastName);
             const userType = person instanceof Student ? 'student' : 'teacher';
             res.status(200).json({
+                found: true,
                 type: userType,
                 ...person
             });
         } else {
             logger.warn('Пользователь с tgId %s не найден', tgId);
-            res.status(404).json({ error: 'Пользователь не найден' });
+            res.status(200).json({ found: false });
         }
     } catch (error) {
         logger.error('Ошибка при поиске пользователя с tgId %s: %o', tgId, error);
@@ -444,11 +697,21 @@ module.exports = async (req, res) => {
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@babel/plugin-transform-private-property-in-object": "^7.24.7",
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@fontsource/roboto": "^5.1.0",
+    "@mui/icons-material": "^6.1.1",
+    "@mui/material": "^6.1.1",
     "dotenv": "^16.4.5",
     "googleapis": "^144.0.0",
+    "jsqr": "^1.4.0",
     "mongodb": "^4.0.0",
+    "qrcode.react": "^4.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-qr-scanner": "^1.0.0-alpha.11",
+    "react-router-dom": "^6.26.2",
     "react-scripts": "5.0.1",
     "winston": "^3.14.2"
   },
@@ -606,84 +869,224 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
 
 
+[rename-case.sh]
+
+#!/bin/bash
+
+# Функция для временного переименования и последующего изменения регистра
+rename_case() {
+  local original_path=$1
+  local temp_path="${original_path}_temp"
+
+  # Переименование во временное имя
+  git mv "$original_path" "$temp_path"
+  git commit -m "Переименовал $original_path во временное имя для изменения регистра"
+
+  # Переименование в окончательное имя с правильным регистром
+  local desired_path=$(echo "$original_path" | sed 's/\b\(.\)/\u\1/g') # Пример преобразования первой буквы в верхний регистр
+  git mv "$temp_path" "$desired_path"
+  git commit -m "Переименовал $temp_path в $desired_path с изменением регистра"
+}
+
+# Пример использования функции для нескольких файлов
+rename_case "src/components/home.js"
+# rename_case "src/components/registrationForm.js"
+# rename_case "src/components/protectedRoute.js"
+
+# Продолжите добавлять вызовы функции для остальных файлов и папок
+
+
 [src\App.js]
 
-import React from 'react';
+// src/App.js
+import React, { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import Home from './components/Home';
+import StudentDashboard from './components/student/StudentDashboard';
+import TeacherDashboard from './components/teacher/TeacherDashboard';
 import RegistrationForm from './components/RegistrationForm';
-import PersonInfo from './components/PersonInfo';
+import ProtectedRoute from './components/ProtectedRoute';
+import { ThemeProvider } from '@mui/material/styles';
+import { getTheme } from './theme';
+import CssBaseline from '@mui/material/CssBaseline'; // Импортируем CssBaseline
 
 function App() {
+  const [theme, setTheme] = useState(getTheme(window.Telegram?.WebApp?.themeParams || {}));
+
+  useEffect(() => {
+    const onThemeChanged = () => {
+      const newThemeParams = window.Telegram.WebApp.themeParams;
+      setTheme(getTheme(newThemeParams));
+    };
+
+    window.Telegram.WebApp.onEvent('themeChanged', onThemeChanged);
+
+    return () => {
+      window.Telegram.WebApp.offEvent('themeChanged', onThemeChanged);
+    };
+  }, []);
+
   return (
-    <div className="App">
-      <RegistrationForm />
-      <PersonInfo userType="student" />
-      <PersonInfo userType="teacher" />
-    </div>
+    <ThemeProvider theme={theme}>
+      <CssBaseline /> {/* Добавляем CssBaseline */}
+      <div className="App">
+        <Routes>
+          {/* Главная страница */}
+          <Route path="/" element={<Home />} />
+
+          {/* Страницы для студентов */}
+          <Route
+            path="/student/*"
+            element={
+              <ProtectedRoute allowedRoles={['student']}>
+                <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Страницы для преподавателей */}
+          <Route
+            path="/teacher/*"
+            element={
+              <ProtectedRoute allowedRoles={['teacher']}>
+                <TeacherDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Страница регистрации */}
+          <Route path="/register" element={<RegistrationForm />} />
+        </Routes>
+      </div>
+    </ThemeProvider>
   );
 }
 
 export default App;
 
 
-[src\components\PersonInfo.js]
+[src\components\Home.js]
 
-// src/components/PersonInfo.js
-import React, { useState, useEffect } from 'react';
-import { handleApiRequest } from '../utils/api-helpers';
-import logger from '../utils/logger';
+// src/components/home.js
+import React, { useContext } from 'react';
+import { UserContext } from '../context/UserContext';
+import { Navigate } from 'react-router-dom';
+import RegistrationForm from './RegistrationForm';
+import Loading from './Loading'; // Импортируем компонент Loading
+import { Box, Typography } from '@mui/material'; // Импортируем компоненты MUI
 
-function PersonInfo({ userType }) {
-  const [person, setPerson] = useState(null);
+function Home() {
+  const { user } = useContext(UserContext);
 
-  useEffect(() => {
-    const fetchPerson = async () => {
-      const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-      if (!tgId) {
-        logger.error('Telegram user ID не найден');
-        return;
-      }
-      const data = await handleApiRequest(`/api/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
-      if (data?.type === userType) {
-        setPerson(data);
-        logger.info('Данные пользователя получены: %o', data);
-      } else {
-        logger.warn('Пользователь с tgId %s не найден или тип не соответствует', tgId);
-      }
-    };
-    fetchPerson();
-  }, [userType]);
+  if (user === undefined) {
+    // Если пользователь ещё загружается, показываем индикатор загрузки
+    return <Loading message="Подождите, идет загрузка..." />;
+  }
 
-  if (!person) return null;
+  if (user === null) {
+    // Если пользователь не найден, показываем форму регистрации
+    return <RegistrationForm />;
+  } else if (user.type === 'student') {
+    // Перенаправляем студента на его дашборд
+    return <Navigate to="/student" replace />;
+  } else if (user.type === 'teacher') {
+    // Перенаправляем преподавателя на его дашборд
+    return <Navigate to="/teacher" replace />;
+  } else {
+    // Непредвиденный тип пользователя
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          backgroundColor: 'background.default',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <Typography variant="h6" color="error">
+          Ошибка: неизвестный тип пользователя
+        </Typography>
+      </Box>
+    );
+  }
+}
 
+export default Home;
+
+
+[src\components\Loading.js]
+
+// src/components/Loading.js
+import React from 'react';
+import { Box, CircularProgress, Typography } from '@mui/material';
+
+function Loading({ message = 'Загрузка...' }) {
   return (
-    <div>
-      <h1>{userType === 'student' ? 'Информация о студенте' : 'Информация о преподавателе'}</h1>
-      <div>ID: {person.tgId}</div>
-      <div>Имя: {person.firstName}</div>
-      <div>Фамилия: {person.lastName}</div>
-      {userType === 'student' ? (
-        <div>Номер зачётки: {person.gradeBookId}</div>
-      ) : (
-        <div>Кафедра: {person.department}</div>
-      )}
-    </div>
+    <Box
+      display="flex"
+      flexDirection="column"
+      justifyContent="center"
+      alignItems="center"
+      height="100vh"
+      bgcolor="background.default"
+    >
+      <CircularProgress color="primary" size={60} />
+      <Typography variant="h6" mt={2}>
+        {message}
+      </Typography>
+    </Box>
   );
 }
 
-export default PersonInfo;
+export default Loading;
+
+
+[src\components\ProtectedRoute.js]
+
+// src/components/protectedRoute.js
+import React, { useContext } from 'react';
+import { UserContext } from '../context/UserContext';
+import { Navigate } from 'react-router-dom';
+
+function ProtectedRoute({ children, allowedRoles }) {
+  const { user } = useContext(UserContext);
+
+  if (user === undefined) {
+    // Если пользователь ещё загружается, можно показать индикатор загрузки
+    return <div>Загрузка...</div>;
+  }
+
+  if (!user) {
+    // Если пользователь не авторизован, перенаправляем на страницу регистрации
+    return <Navigate to="/register" replace />;
+  }
+
+  if (!allowedRoles.includes(user.type)) {
+    // Если роль пользователя не соответствует разрешённым, показываем сообщение об ошибке
+    return <div>Доступ запрещён</div>;
+  }
+
+  return children;
+}
+
+export default ProtectedRoute;
 
 
 [src\components\RegistrationForm.js]
 
-// src/components/RegistrationForm.js
+// src/components/registrationForm.js
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { handleApiRequest } from '../utils/api-helpers';
 import logger from '../utils/logger';
+import { TextField, Button, Typography, Container } from '@mui/material';
 
 function RegistrationForm() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
+  const navigate = useNavigate();
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -696,6 +1099,14 @@ function RegistrationForm() {
     logger.info('Telegram WebApp успешно инициализирован. Пользователь: ', tgUser);
   }, []);
 
+  // Добавляем новый useEffect для перенаправления после успешной регистрации
+  useEffect(() => {
+    if (isRegistered) {
+      console.log('Navigating immediately without timeout');
+      navigate('/', { replace: true });
+    }
+  }, [isRegistered, navigate]);
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     const data = await handleApiRequest('/api/user/check-email', { email });
@@ -718,7 +1129,8 @@ function RegistrationForm() {
       tgUserId: tgUser?.id,
     });
     if (data) {
-      setIsRegistered(true);
+      setIsRegistered(true); // Устанавливаем isRegistered в true
+      console.log('isRegistered set to true');
       setError('');
       logger.info('Пользователь успешно зарегистрирован с tgId: %s', tgUser?.id);
     } else {
@@ -728,49 +1140,785 @@ function RegistrationForm() {
   };
 
   return isRegistered ? (
-    <div>Вы успешно зарегистрировались!</div>
+    <Container maxWidth="sm">
+      <Typography variant="h5" align="center" gutterBottom>
+        Вы успешно зарегистрировались!
+      </Typography>
+      <Typography variant="body1" align="center">
+        Сейчас вы будете перенаправлены...
+      </Typography>
+    </Container>
   ) : (
-    <div>
+    <Container maxWidth="sm">
+      <Typography variant="h5" align="center" gutterBottom>
+        Регистрация
+      </Typography>
       <form onSubmit={handleSubmit}>
-        <label>
-          Введите ваш email:
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-        </label>
-        <button type="submit">Отправить</button>
+        <TextField
+          label="Email"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Button type="submit" variant="outlined" fullWidth>
+          Отправить
+        </Button>
       </form>
 
       <div style={{ marginTop: '20px' }}>
-        <label>
-          Введите код:
-          <input type="text" value={code} onChange={(e) => setCode(e.target.value)} required />
-        </label>
-        <button onClick={handleVerify}>Проверить</button>
+        <TextField
+          label="Введите код"
+          variant="outlined"
+          fullWidth
+          margin="normal"
+          value={code}
+          onChange={(e) => setCode(e.target.value)}
+          required
+        />
+        <Button onClick={handleVerify} variant="outlined" fullWidth>
+          Проверить
+        </Button>
       </div>
 
-      {error && <div style={{ color: 'red' }}>{error}</div>}
-    </div>
+      {error && (
+        <Typography variant="body2" color="error" align="center">
+          {error}
+        </Typography>
+      )}
+    </Container>
   );
 }
 
 export default RegistrationForm;
 
 
+[src\components\SessionCard.js]
+
+// src/components/SessionCard.js
+import React from 'react';
+import { Card, CardContent, Typography, Chip, Box, Stack } from '@mui/material';
+
+function SessionCard({
+  title,
+  topic,
+  dateTime,
+  assignment,
+  attendance,
+}) {
+  const attendanceColors = {
+    present: 'success',
+    absent: 'error',
+  };
+
+  const attendanceLabels = {
+    present: 'Присутствует',
+    absent: 'Отсутствует',
+  };
+
+  return (
+    <Card variant="outlined" sx={{ width: '100%' }}>
+      <CardContent>
+        {/* Заголовок Карточки */}
+        <Typography variant="h6" component="div" gutterBottom>
+          {title}
+        </Typography>
+
+        {/* Тема Пары */}
+        <Box sx={{ marginBottom: 1 }}>
+          <Typography variant="subtitle1" color="text.secondary">
+            Тема пары:
+          </Typography>
+          <Typography variant="body1">{topic}</Typography>
+        </Box>
+
+        {/* Дата и Время */}
+        <Box sx={{ marginBottom: 1 }}>
+          <Typography variant="subtitle1" color="text.secondary">
+            Дата и время проведения:
+          </Typography>
+          <Typography variant="body1">{dateTime}</Typography>
+        </Box>
+
+        {/* Задание */}
+        <Box sx={{ marginBottom: 1 }}>
+          <Typography variant="subtitle1" color="text.secondary">
+            Задание:
+          </Typography>
+          <Typography variant="body1">{assignment}</Typography>
+        </Box>
+
+        {/* Отметка Присутствия/Отсутствия */}
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="subtitle1" color="text.secondary">
+            Статус:
+          </Typography>
+          <Chip
+            label={attendanceLabels[attendance]}
+            color={attendanceColors[attendance]}
+          />
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default SessionCard;
+
+
+[src\components\student\StudentDashboard.js]
+
+// src/components/student/studentDashboard.js
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import StudentProfile from './StudentProfile';
+import StudentQRCheck from './StudentQRCheck';
+import StudentStatistics from './StudentStatistics';
+import { Container, Tabs, Tab } from '@mui/material';
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
+
+function StudentDashboard() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const tabNameToIndex = {
+    '/student/profile': 0,
+    '/student/qr': 1,
+    '/student/statistics': 2,
+  };
+
+  const indexToTabName = {
+    0: 'profile',
+    1: 'qr',
+    2: 'statistics',
+  };
+
+  const [value, setValue] = useState(tabNameToIndex[location.pathname] || 0);
+
+  useEffect(() => {
+    setValue(tabNameToIndex[location.pathname] || 0);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (location.pathname === '/student') {
+      navigate('profile');
+    }
+  }, [location.pathname, navigate]);
+
+  const handleChange = (event, newValue) => {
+    navigate(indexToTabName[newValue]);
+  };
+
+  return (
+    <Container maxWidth="md">
+      {/* Вкладки с иконками */}
+      <Tabs value={value} onChange={handleChange} aria-label="icon tabs" centered>
+        <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Profile" />
+        <Tab icon={<CameraAltOutlinedIcon />} aria-label="qr" label="QR" />
+        <Tab icon={<InsertChartOutlinedIcon />} aria-label="statistics" label="Statistics" />
+      </Tabs>
+
+      {/* Маршруты */}
+      <Routes>
+        <Route path="profile" element={<StudentProfile />} />
+        <Route path="qr" element={<StudentQRCheck />} />
+        <Route path="statistics" element={<StudentStatistics />} />
+      </Routes>
+    </Container>
+  );
+}
+
+export default StudentDashboard;
+
+
+[src\components\student\StudentProfile.js]
+
+// src/components/student/studentProfile.js
+import React, { useContext, useEffect, useState } from 'react';
+import { UserContext } from '../../context/UserContext';
+import { Container, Typography } from '@mui/material';
+
+function StudentProfile() {
+  const { user } = useContext(UserContext);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      setLoading(false);
+    }
+  }, [user]);
+
+  if (loading) {
+    return (
+      <Container>
+        <Typography variant="h5">Загрузка профиля...</Typography>
+      </Container>
+    );
+  }
+
+  return (
+    <Container>
+      <Typography variant="h5" gutterBottom>
+        Профиль Студента
+      </Typography>
+      <Typography variant="body1">Имя: {user.firstName}</Typography>
+      <Typography variant="body1">Фамилия: {user.lastName}</Typography>
+      <Typography variant="body1">Номер зачётки: {user.gradeBookId}</Typography>
+    </Container>
+  );
+}
+
+export default StudentProfile;
+
+
+[src\components\student\StudentQRCheck.js]
+
+// src/components/student/studentQRCheck.js
+import React, { useRef, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import jsQR from 'jsqr';
+import { handleApiRequest } from '../../utils/api-helpers';
+import { Container, Typography, Alert, Box, Button, Paper } from '@mui/material';
+
+function StudentQRCheck() {
+  const videoRef = useRef(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [streaming, setStreaming] = useState(false);
+  const canvasRef = useRef(null);
+  const navigate = useNavigate();
+
+  const startCamera = () => {
+    setStreaming(true);
+  };
+
+  const tick = () => {
+    if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+      const canvas = canvasRef.current.getContext('2d');
+      canvasRef.current.width = videoRef.current.videoWidth;
+      canvasRef.current.height = videoRef.current.videoHeight;
+      canvas.drawImage(
+        videoRef.current,
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+
+      const imageData = canvas.getImageData(
+        0,
+        0,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+      const code = jsQR(
+        imageData.data,
+        canvasRef.current.width,
+        canvasRef.current.height
+      );
+
+      if (code) {
+        // QR-код распознан
+        handleScanResult(code.data);
+        setStreaming(false);
+      } else {
+        requestAnimationFrame(tick);
+      }
+    } else {
+      requestAnimationFrame(tick);
+    }
+  };
+
+  const handleScanResult = async (qrCode) => {
+    if (qrCode && qrCode.startsWith('marhi-qr-')) {
+      try {
+        // Получение tgUserId из Telegram WebApp
+        const tgUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+
+        const data = await handleApiRequest(
+          '/api/student/check-in',
+          { qrCode },
+          'POST',
+          { 'x-telegram-user-id': tgUserId }
+        );
+
+        if (data && data.success) {
+          setSuccess(data.message || 'Вы успешно отметились на паре!');
+        } else {
+          setError(data.error || 'Ошибка при отметке посещения.');
+        }
+      } catch (err) {
+        console.error('Ошибка при отметке посещения:', err);
+        setError('Ошибка при отметке посещения.');
+      }
+    } else {
+      setError('Неверный QR-код. Попробуйте снова.');
+    }
+  };
+
+  useEffect(() => {
+    let stream;
+    if (streaming) {
+      navigator.mediaDevices
+        .getUserMedia({ video: { facingMode: 'environment' } })
+        .then((s) => {
+          stream = s;
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.setAttribute('playsinline', true); // Для iOS
+            videoRef.current.play();
+            requestAnimationFrame(tick);
+          } else {
+            console.error('videoRef.current is null');
+            setError('Ошибка: видеоэлемент недоступен.');
+            setStreaming(false);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка при доступе к камере:', err);
+          setError('Ошибка при доступе к камере: ' + err.message);
+          setStreaming(false);
+        });
+    }
+
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, [streaming]);
+
+  return (
+    <Container maxWidth="sm">
+      <Typography variant="h5" align="center" gutterBottom>
+        Отметка посещения
+      </Typography>
+
+      {success ? (
+        <Alert severity="success">{success}</Alert>
+      ) : (
+        <>
+          {error && <Alert severity="error">{error}</Alert>}
+          <Typography variant="body1" align="center" gutterBottom>
+            Наведите камеру на QR-код, чтобы отметиться на паре.
+          </Typography>
+          {!streaming && (
+            <Button variant="contained" color="primary" onClick={startCamera}>
+              Открыть камеру
+            </Button>
+          )}
+          <Box display="flex" justifyContent="center" mt={2}>
+            <Paper
+              elevation={3}
+              style={{
+                width: '70%',
+                height: '70%',
+                borderRadius: '16px',
+                overflow: 'hidden',
+              }}
+            >
+              <video
+                ref={videoRef}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '16px',
+                  display: streaming ? 'block' : 'none',
+                  objectFit: 'cover',
+                }}
+              />
+              <canvas
+                ref={canvasRef}
+                style={{ display: 'none' }}
+              />
+            </Paper>
+          </Box>
+        </>
+      )}
+    </Container>
+  );
+}
+
+export default StudentQRCheck;
+
+
+[src\components\student\StudentStatistics.js]
+
+// src/components/student/studentStatistics.js
+import React from 'react';
+import { Container, Typography } from '@mui/material';
+
+function StudentStatistics() {
+  return (
+    <Container>
+      <Typography variant="h5" gutterBottom>
+        Статистика Студента
+      </Typography>
+      <Typography variant="body1">Скоро здесь появится статистика</Typography>
+    </Container>
+  );
+}
+
+export default StudentStatistics;
+
+
+[src\components\teacher\TeacherAttendance.js]
+
+// src/components/teacher/teacherAttendance.js
+import React, { useEffect, useState } from 'react';
+import { handleApiRequest } from '../../utils/api-helpers';
+import {
+  Container,
+  Typography,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+} from '@mui/material';
+
+function TeacherAttendance() {
+  const [students, setStudents] = useState([]);
+
+  useEffect(() => {
+    const fetchAttendance = async () => {
+      try {
+        const data = await handleApiRequest('/api/teacher/attendance', null, 'GET');
+        if (data && data.students) {
+          setStudents(data.students);
+        }
+      } catch (error) {
+        console.error('Ошибка при получении посещаемости', error);
+      }
+    };
+
+    fetchAttendance();
+  }, []);
+
+  return (
+    <Container maxWidth="md">
+      <Typography variant="h5" align="center" gutterBottom>
+        Посещаемость студентов
+      </Typography>
+      <Table>
+        <TableHead>
+          <TableRow>
+            <TableCell>Фамилия</TableCell>
+            <TableCell>Имя</TableCell>
+            <TableCell>Группа</TableCell>
+            <TableCell>Посещенные занятия</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {students.map((student) => (
+            <TableRow key={student._id}>
+              <TableCell>{student.lastName}</TableCell>
+              <TableCell>{student.firstName}</TableCell>
+              <TableCell>{student.groupId}</TableCell>
+              <TableCell>{student.attendanceCount}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Container>
+  );
+}
+
+export default TeacherAttendance;
+
+
+[src\components\teacher\TeacherDashboard.js]
+
+// src/components/teacher/teacherDashboard.js
+import React, { useState } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import TeacherProfile from './TeacherProfile';
+import TeacherQRGenerator from './TeacherQRGenerator';
+import TeacherAttendance from './TeacherAttendance';
+import { Container, Tabs, Tab } from '@mui/material';
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
+import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+import ListIcon from '@mui/icons-material/List';
+
+function TeacherDashboard() {
+  const [value, setValue] = useState(0);
+  const navigate = useNavigate();
+
+  const handleChange = (event, newValue) => {
+    setValue(newValue);
+
+    // Перенаправляем на нужный маршрут при изменении вкладки
+    if (newValue === 0) navigate('profile');
+    if (newValue === 1) navigate('qr');
+    if (newValue === 2) navigate('attendance');
+  };
+
+  return (
+    <Container maxWidth="md">
+      {/* Вкладки с иконками */}
+      <Tabs value={value} onChange={handleChange} aria-label="icon tabs" centered>
+        <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Profile" />
+        <Tab icon={<CameraAltOutlinedIcon />} aria-label="qr" label="QR" />
+        <Tab icon={<ListIcon />} aria-label="attendance" label="Attendance" />
+      </Tabs>
+
+      {/* Маршруты */}
+      <Routes>
+        <Route path="profile" element={<TeacherProfile />} />
+        <Route path="qr" element={<TeacherQRGenerator />} />
+        <Route path="attendance" element={<TeacherAttendance />} />
+      </Routes>
+    </Container>
+  );
+}
+
+export default TeacherDashboard;
+
+
+[src\components\teacher\TeacherProfile.js]
+
+// src/components/teacher/TeacherProfile.js
+import React, { useContext } from 'react';
+import { UserContext } from '../../context/UserContext';
+import { Box, Typography, Stack } from '@mui/material';
+import SessionCard from '../SessionCard';
+
+function TeacherProfile() {
+  const { user } = useContext(UserContext);
+
+  if (!user) return null;
+
+  // Пример данных для карточек
+  const classSessions = [
+    {
+      title: 'Предыдущая пара',
+      topic: 'Введение в математический анализ',
+      dateTime: '01.09.2024, 10:00 - 11:30',
+      assignment: 'Прочитать главы 1-2 и решить упражнения 1.1-1.5',
+      attendance: 'present',
+    },
+    {
+      title: 'Текущая пара',
+      topic: 'Линейная алгебра',
+      dateTime: '02.09.2024, 12:00 - 13:30',
+      assignment: 'Решить задачи 2.1-2.3 и подготовить презентацию',
+      attendance: 'absent',
+    },
+    {
+      title: 'Следующая пара',
+      topic: 'Дифференциальные уравнения',
+      dateTime: '03.09.2024, 14:00 - 15:30',
+      assignment: 'Подготовить доклад по теме "Методы решения уравнений"',
+      attendance: 'present',
+    },
+  ];
+
+  return (
+    <Box sx={{ padding: 2, backgroundColor: 'background.default', minHeight: '100vh' }}>
+      <Typography variant="h4" gutterBottom>
+        Профиль Преподавателя
+      </Typography>
+      <Box sx={{ marginBottom: 4 }}>
+        <Typography variant="body1">ID: {user.tgId}</Typography>
+        <Typography variant="body1">Имя: {user.firstName}</Typography>
+        <Typography variant="body1">Фамилия: {user.lastName}</Typography>
+        <Typography variant="body1">Кафедра: {user.department}</Typography>
+        {/* Добавьте дополнительную информацию по необходимости */}
+      </Box>
+
+      {/* Карточки с информацией о парах */}
+      <Stack spacing={3}>
+        {classSessions.map((session, index) => (
+          <SessionCard
+            key={index}
+            title={session.title}
+            topic={session.topic}
+            dateTime={session.dateTime}
+            assignment={session.assignment}
+            attendance={session.attendance}
+          />
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+export default TeacherProfile;
+
+
+[src\components\teacher\TeacherQRGenerator.js]
+
+// src/components/teacher/teacherQRGenerator.js
+import React, { useState, useEffect } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
+import { Container, Typography } from '@mui/material';
+import { handleApiRequest } from '../../utils/api-helpers';
+
+function TeacherQRGenerator() {
+  const [qrCodeValue, setQrCodeValue] = useState('');
+  const [timer, setTimer] = useState(10);
+  const [studentCount, setStudentCount] = useState(0);
+
+  useEffect(() => {
+    // Функция для генерации нового QR-кода
+    const generateQrCode = async () => {
+      try {
+        const data = await handleApiRequest('/api/teacher/generate-qr', null, 'GET');
+        if (data && data.qrCode) {
+          setQrCodeValue(data.qrCode);
+          setTimer(10); // Сброс таймера
+        }
+      } catch (error) {
+        console.error('Ошибка при генерации QR-кода', error);
+      }
+    };
+
+    // Функция для получения количества отметившихся студентов
+    const fetchStudentCount = async () => {
+      try {
+        const data = await handleApiRequest('/api/teacher/student-count', null, 'GET');
+        if (data && data.count !== undefined) {
+          setStudentCount(data.count);
+        }
+      } catch (error) {
+        console.error('Ошибка при получении количества студентов', error);
+      }
+    };
+
+    // Генерируем QR-код при загрузке компонента
+    generateQrCode();
+    fetchStudentCount();
+
+    // Устанавливаем интервал для обновления QR-кода каждые 10 секунд
+    const interval = setInterval(() => {
+      generateQrCode();
+      fetchStudentCount();
+    }, 10000);
+
+    // Обновление таймера каждую секунду
+    const countdown = setInterval(() => {
+      setTimer((prev) => (prev > 0 ? prev - 1 : 10));
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(countdown);
+    };
+  }, []);
+
+  return (
+    <Container maxWidth="sm">
+      <Typography variant="h5" align="center" gutterBottom>
+        Генерация QR-кода для отметки посещений
+      </Typography>
+      {qrCodeValue ? (
+        <div style={{ textAlign: 'center' }}>
+          <QRCodeCanvas value={qrCodeValue} size={256} />
+          <Typography variant="body1" align="center">
+            Обновление через: {timer} секунд
+          </Typography>
+          <Typography variant="body1" align="center">
+            Отметилось студентов: {studentCount}
+          </Typography>
+        </div>
+      ) : (
+        <Typography variant="body1" align="center">
+          Генерация QR-кода...
+        </Typography>
+      )}
+    </Container>
+  );
+}
+
+export default TeacherQRGenerator;
+
+
+[src\context\UserContext.js]
+
+// src/context/userContext.js
+import React, { createContext, useState, useEffect } from 'react';
+import { handleApiRequest } from '../utils/api-helpers';
+
+export const UserContext = createContext();
+
+export const UserProvider = ({ children }) => {
+  const [user, setUser] = useState(undefined); // Начальное значение undefined
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      if (!tgId) {
+        console.error('Telegram user ID не найден');
+        setUser(null);
+        return;
+      }
+      const data = await handleApiRequest(`/api/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
+      if (data?.found) {
+        setUser(data);
+      } else {
+        setUser(null);
+      }
+    };
+    fetchUser();
+  }, []);
+
+  return (
+    <UserContext.Provider value={{ user, setUser }}>
+      {children}
+    </UserContext.Provider>
+  );
+};
+
+
 [src\index.js]
 
+// src/index.js
 import React from 'react';
-import ReactDOM from 'react-dom';
-import './styles.css';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import { UserProvider } from './context/UserContext';
+import { ThemeProvider } from '@mui/material/styles';
+import { getTheme } from './theme';
+import CssBaseline from '@mui/material/CssBaseline';
 import App from './App';
 
-ReactDOM.render(
+// Импорт шрифтов и базовых стилей MUI
+import '@fontsource/roboto/300.css';
+import '@fontsource/roboto/400.css';
+import '@fontsource/roboto/500.css';
+import '@fontsource/roboto/700.css';
+
+const themeParams = window.Telegram?.WebApp?.themeParams || {};
+const theme = getTheme(themeParams);
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
   <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
+    <BrowserRouter>
+      <UserProvider>
+        <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <App />
+        </ThemeProvider>
+      </UserProvider>
+    </BrowserRouter>
+  </React.StrictMode>
 );
+
 
 [src\styles.css]
 
+/* src/styles.css */
+
+/* Удалите или закомментируйте эти стили */
+/*
 body {
   font-family: Arial, sans-serif;
   display: flex;
@@ -811,6 +1959,113 @@ input {
   border-radius: 5px;
   border: 1px solid #ccc;
 }
+*/
+
+
+[src\theme.js]
+
+// theme.js
+import { createTheme } from '@mui/material/styles';
+
+// Функция для преобразования HEX-цвета в яркость
+const getBrightness = (hexColor) => {
+  const hex = hexColor.replace('#', '');
+
+  // Разбиваем цвет на составляющие (R, G, B)
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+
+  // Вычисляем яркость
+  return (0.299 * r + 0.587 * g + 0.114 * b);
+};
+
+export const getTheme = (themeParams) => {
+  const bgColor = themeParams?.bg_color || '#ffffff';
+  const brightness = getBrightness(bgColor); // Вычисляем яркость
+  // const isLightTheme = brightness > 128; // Определяем, светлая тема или тёмная
+  const isLightTheme = true; // Временное решение
+
+  return createTheme({
+    palette: {
+      mode: isLightTheme ? 'light' : 'dark', // Светлая или тёмная тема
+      background: {
+        default: isLightTheme ? '#ffffff' : '#000000',
+        // default: bgColor,
+      },
+      text: {
+        primary: isLightTheme ? '#000000' : '#ffffff', // Текст зависит от яркости
+      },
+      primary: {
+        main: themeParams?.button_color || '#0088cc', // Бирюзовый цвет при наведении
+        contrastText: themeParams?.button_text_color || '#ffffff',
+      },
+    },
+    typography: {
+      allVariants: {
+        color: isLightTheme ? '#000000' : '#ffffff',
+      },
+    },
+    components: {
+      MuiTypography: {
+        styleOverrides: {
+          root: {
+            color: isLightTheme ? '#000000' : '#ffffff',
+          },
+        },
+      },
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              '& fieldset': {
+                borderColor: isLightTheme ? '#000000' : '#ffffff', // Черная обводка в светлой теме, белая в тёмной
+              },
+              '&:hover fieldset': {
+                borderColor: themeParams?.button_color || '#0088cc', // Бирюзовая обводка при наведении
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: themeParams?.button_color || '#0088cc', // Бирюзовая обводка при фокусе
+              },
+            },
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            borderColor: isLightTheme ? '#000000' : '#ffffff', // Черная обводка в светлой теме, белая в тёмной
+            color: isLightTheme ? '#000000' : '#ffffff', // Черный текст в светлой теме, белый в темной
+            '&:hover': {
+              backgroundColor: themeParams?.button_color || '#0088cc', // Бирюзовый фон при наведении
+              color: themeParams?.button_text_color || '#ffffff', // Белый текст при наведении
+            },
+          },
+        },
+      },
+      MuiTabs: {
+        styleOverrides: {
+          root: {
+            color: isLightTheme ? '#000000' : '#ffffff',
+          },
+          indicator: {
+            backgroundColor: themeParams?.button_color || '#0088cc',
+          },
+        },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            color: isLightTheme ? '#000000' : '#ffffff',
+            '&.Mui-selected': {
+              color: themeParams?.button_color || '#0088cc',
+            },
+          },
+        },
+      },
+    },
+  });
+};
 
 
 [src\utils\api-helpers.js]
