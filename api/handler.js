@@ -1,6 +1,8 @@
 // api/handler.js
 const express = require('express');
+const serverless = require('serverless-http'); // Импортируем serverless-http
 const app = express();
+
 app.use(express.json());
 
 // Импорт необходимых модулей
@@ -406,5 +408,5 @@ async function verifyCode(req, res) {
   }
 }
 
-// Экспорт приложения
-module.exports = app;
+// Экспортируем обработчик для Vercel
+module.exports.handler = serverless(app);
