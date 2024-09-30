@@ -33,6 +33,11 @@ app.post('/user/check-email', checkEmail);
 app.get('/api/user/find-by-tgId', findByTgId);
 app.post('/user/verify-code', verifyCode);
 
+app.get('/test', (req, res) => {
+  res.json({ message: 'Тестовый маршрут работает!' });
+});
+
+
 // Обработчики маршрутов
 
 // 1. Обработчики для студентов

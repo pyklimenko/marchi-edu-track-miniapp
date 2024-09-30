@@ -17,7 +17,7 @@ export const UserProvider = ({ children }) => {
         setUser(null);
         return;
       }
-      const data = await handleApiRequest(`/api/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
+      const data = await handleApiRequest(`/user/find-by-tgId?tgId=${tgId}`, null, 'GET');
       if (data?.found) {
         setUser(data);
       } else {
