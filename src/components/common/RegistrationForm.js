@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { handleApiRequest } from '../../utils/api-helpers';
-import logger from '../utils/logger';
+import logger from '../../utils/logger';
 import { TextField, Button, Typography, Container } from '@mui/material';
 
 function RegistrationForm() {
