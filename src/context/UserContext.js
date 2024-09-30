@@ -1,7 +1,7 @@
 // src/context/userContext.js
 import React, { createContext, useState, useEffect } from 'react';
 import { handleApiRequest } from '../utils/api-helpers';
-import { getTelegramUser } from '../utils/telegram';
+import { getTelegramUser } from '../telegram/telegram-web';
 
 export const UserContext = createContext();
 
