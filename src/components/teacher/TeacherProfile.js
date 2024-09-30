@@ -2,7 +2,7 @@
 import React, { useContext } from 'react';
 import { UserContext } from '../../context/UserContext';
 import { Box, Typography, Stack } from '@mui/material';
-import SessionCard from '../SessionCard';
+import SessionCard from '../common/SessionCard';
 
 function TeacherProfile() {
   const { user } = useContext(UserContext);
