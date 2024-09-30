@@ -1,6 +1,6 @@
 // src/components/protectedRoute.js
 import React, { useContext } from 'react';
-import { UserContext } from '../context/UserContext';
+import { UserContext } from '../../context/UserContext';
 import { Navigate } from 'react-router-dom';
 
 function ProtectedRoute({ children, allowedRoles }) {

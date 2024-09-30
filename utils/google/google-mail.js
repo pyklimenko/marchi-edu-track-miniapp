@@ -1,7 +1,7 @@
 // api/google/google-mail.js
 const { google } = require('googleapis');
 const googleAuthorize = require('./google-auth');
-const logger = require('../../utils/logger');
+const logger = require('../logger');
 
 async function sendGmailWithRetry(to, subject, message, retryCount = 3) {
     for (let attempt = 1; attempt <= retryCount; attempt++) {

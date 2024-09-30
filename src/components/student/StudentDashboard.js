@@ -1,28 +1,28 @@
-// src/components/student/studentDashboard.js
+// src/components/student/StudentDashboard.js
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import StudentProfile from './StudentProfile';
-import StudentQRCheck from './StudentQRCheck';
+import StudentSessions from './StudentSessions'; // Новый компонент
 import StudentStatistics from './StudentStatistics';
 import { Container, Tabs, Tab } from '@mui/material';
-import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
-import CameraAltOutlinedIcon from '@mui/icons-material/CameraAltOutlined';
+import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import InsertChartOutlinedIcon from '@mui/icons-material/InsertChartOutlined';
+import AccountCircleOutlinedIcon from '@mui/icons-material/AccountCircleOutlined';
 
 function StudentDashboard() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const tabNameToIndex = {
-    '/student/profile': 0,
-    '/student/qr': 1,
-    '/student/statistics': 2,
+    '/student/sessions': 0,
+    '/student/statistics': 1,
+    '/student/profile': 2,
   };
 
   const indexToTabName = {
-    0: 'profile',
-    1: 'qr',
-    2: 'statistics',
+    0: 'sessions',
+    1: 'statistics',
+    2: 'profile',
   };
 
   const [value, setValue] = useState(tabNameToIndex[location.pathname] || 0);
@@ -33,7 +33,7 @@ function StudentDashboard() {
 
   useEffect(() => {
     if (location.pathname === '/student') {
-      navigate('profile');
+      navigate('sessions');
     }
   }, [location.pathname, navigate]);
 
@@ -45,16 +45,16 @@ function StudentDashboard() {
     <Container maxWidth="md">
       {/* Вкладки с иконками */}
       <Tabs value={value} onChange={handleChange} aria-label="icon tabs" centered>
-        <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Profile" />
-        <Tab icon={<CameraAltOutlinedIcon />} aria-label="qr" label="QR" />
-        <Tab icon={<InsertChartOutlinedIcon />} aria-label="statistics" label="Statistics" />
+        <Tab icon={<ListAltOutlinedIcon />} aria-label="sessions" label="Занятия" />
+        <Tab icon={<InsertChartOutlinedIcon />} aria-label="statistics" label="Статистика" />
+        <Tab icon={<AccountCircleOutlinedIcon />} aria-label="profile" label="Профиль" />
       </Tabs>
 
       {/* Маршруты */}
       <Routes>
-        <Route path="profile" element={<StudentProfile />} />
-        <Route path="qr" element={<StudentQRCheck />} />
+        <Route path="sessions" element={<StudentSessions />} />
         <Route path="statistics" element={<StudentStatistics />} />
+        <Route path="profile" element={<StudentProfile />} />
       </Routes>
     </Container>
   );

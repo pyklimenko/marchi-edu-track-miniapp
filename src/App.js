@@ -1,11 +1,11 @@
 // src/App.js
 import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import Home from './components/Home';
+import Home from './components/common/Home';
 import StudentDashboard from './components/student/StudentDashboard';
 import TeacherDashboard from './components/teacher/TeacherDashboard';
-import RegistrationForm from './components/RegistrationForm';
-import ProtectedRoute from './components/ProtectedRoute';
+import RegistrationForm from './components/common/RegistrationForm';
+import ProtectedRoute from './components/common/ProtectedRoute';
 import { ThemeProvider } from '@mui/material/styles';
 import { getTheme } from './theme';
 import CssBaseline from '@mui/material/CssBaseline'; // Импортируем CssBaseline

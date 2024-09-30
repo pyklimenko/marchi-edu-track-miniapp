@@ -1,6 +1,6 @@
 const { ObjectId } = require('mongodb');
 const connectToDatabase = require('./db-connect');
-const logger = require('../../utils/logger');
+const logger = require('../logger');
 
 class Person {
     constructor({ _id, lastName, firstName, middleName, phoneNumber, email, tgId, tgUserName }) {
