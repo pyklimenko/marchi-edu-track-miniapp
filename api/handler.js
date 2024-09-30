@@ -30,7 +30,7 @@ app.get('/teacher/student-count', getStudentCount);
 
 // Маршруты для пользователей
 app.post('/user/check-email', checkEmail);
-app.get('/user/find-by-tgId', findByTgId);
+app.get('/api/user/find-by-tgId', findByTgId);
 app.post('/user/verify-code', verifyCode);
 
 // Обработчики маршрутов
