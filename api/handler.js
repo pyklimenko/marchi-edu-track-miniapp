@@ -18,18 +18,18 @@ const sendGmailWithRetry = require('../utils/google/google-mail');
 const logger = require('../utils/logger');
 
 // Маршруты для студентов
-app.get('/api/student/sessions', getStudentSessions);
-app.post('/api/student/check-in', studentCheckIn);
+app.get('/student/sessions', getStudentSessions);
+app.post('/student/check-in', studentCheckIn);
 
 // Маршруты для преподавателей
-app.get('/api/teacher/attendance', getTeacherAttendance);
-app.post('/api/teacher/generate-qr', generateQrCode);
-app.get('/api/teacher/student-count', getStudentCount);
+app.get('/teacher/attendance', getTeacherAttendance);
+app.post('/teacher/generate-qr', generateQrCode);
+app.get('/teacher/student-count', getStudentCount);
 
 // Маршруты для пользователей
-app.post('/api/user/check-email', checkEmail);
-app.get('/api/user/find-by-tgId', findByTgId);
-app.post('/api/user/verify-code', verifyCode);
+app.post('/user/check-email', checkEmail);
+app.get('/user/find-by-tgId', findByTgId);
+app.post('/user/verify-code', verifyCode);
 
 // Обработчики маршрутов
 
