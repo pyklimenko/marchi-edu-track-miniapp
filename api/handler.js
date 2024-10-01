@@ -1,6 +1,8 @@
 // api/handler.js
 const express = require('express');
+const serverless = require('serverless-http'); // Импортируем serverless-http
 const app = express();
+
 app.use(express.json());
 
 // Импорт необходимых модулей
@@ -30,6 +32,11 @@ app.get('/teacher/student-count', getStudentCount);
 app.post('/user/check-email', checkEmail);
 app.get('/user/find-by-tgId', findByTgId);
 app.post('/user/verify-code', verifyCode);
+
+app.get('/test', (req, res) => {
+  res.json({ message: 'Тестовый маршрут работает!' });
+});
+
 
 // Обработчики маршрутов
 
@@ -406,5 +413,5 @@ async function verifyCode(req, res) {
   }
 }
 
-// Экспорт приложения
-module.exports = app;
+// Экспортируем обработчик для Vercel как дефолтный экспорт
+module.exports = serverless(app);
