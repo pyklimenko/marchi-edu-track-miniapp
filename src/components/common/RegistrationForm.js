@@ -1,4 +1,4 @@
-// src/components/registrationForm.js
+// src/components/common/registrationForm.js
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { handleApiRequest } from '../../utils/api-helpers';

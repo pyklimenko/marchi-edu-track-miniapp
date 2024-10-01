@@ -1,4 +1,4 @@
-// api/google/google-mail.js
+// utils/google/google-mail.js
 const { google } = require('googleapis');
 const googleAuthorize = require('./google-auth');
 const logger = require('../logger');

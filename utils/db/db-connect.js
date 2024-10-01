@@ -1,4 +1,4 @@
-// api/db/db-connect.js
+// utils/db/db-connect.js
 require('dotenv').config();
 const { MongoClient } = require('mongodb');
 const logger = require('../../utils/logger');

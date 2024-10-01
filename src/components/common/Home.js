@@ -1,4 +1,4 @@
-// src/components/home.js
+// src/components/common/home.js
 import React, { useContext } from 'react';
 import { UserContext } from '../../context/UserContext';
 import { Navigate } from 'react-router-dom';

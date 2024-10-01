@@ -1,4 +1,4 @@
-// api/google/google-auth.js
+// utils/google/google-auth.js
 require('dotenv').config();
 const { google } = require('googleapis');
 const logger = require('../logger');

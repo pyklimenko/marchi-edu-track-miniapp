@@ -1,4 +1,4 @@
-// src/components/SessionCard.js
+// src/components/common/SessionCard.js
 import React from 'react';
 import { Card, CardContent, Typography, Chip, Box, Stack } from '@mui/material';
 
