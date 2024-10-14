@@ -1,5 +1,5 @@
 // src/components/student/studentQRCheck.js
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import jsQR from 'jsqr';
 import { handleApiRequest } from '../../utils/api-helpers';
